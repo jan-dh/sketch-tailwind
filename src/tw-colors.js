@@ -9,7 +9,7 @@ export default function(context){
     const options = ['All styles', 'Selected styles'];
     const selection = sketch.UI.getSelectionFromUser("What do you want to export?", options);
     const okClicked = selection[2];
-    const layers = '';
+    let layers = '';
 
     if (okClicked) {
       const target = options[selection[1]];
@@ -33,7 +33,8 @@ export default function(context){
         layers.push(layer);
       });
     }
-    return layers
+    console.log(layers);
+    // return layers
   }
 
   function createFile(layers) {

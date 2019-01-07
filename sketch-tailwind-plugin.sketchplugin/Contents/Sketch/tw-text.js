@@ -408,15 +408,11 @@ function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.
 
 function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
 
-function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only"); }
-
 
 
 
 /* harmony default export */ __webpack_exports__["default"] = (function (context) {
-  var doc = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.fromNative(context.document); // const selectedLayers = context.selection;
-
-  var selection = allTextStyles;
+  var doc = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.fromNative(context.document);
 
   function popUp() {
     var options = ['All styles', 'Selected styles'];
@@ -426,7 +422,7 @@ function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only")
 
     if (okClicked) {
       var target = options[selection[1]];
-      layers = (_readOnlyError("layers"), setTargetLayers(target));
+      layers = setTargetLayers(target);
 
       if (layers.length) {
         createFile(layers);
@@ -440,11 +436,10 @@ function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only")
     var layers = [];
 
     if (target == 'All styles') {
-      layers = doc.getSharedLayerStyles();
+      layers = doc.getSharedTextStyles();
     } else {
-      var _selection = doc.selectedLayers;
-
-      _selection.forEach(function (layer) {
+      var selection = doc.selectedLayers;
+      selection.forEach(function (layer) {
         layers.push(layer);
       });
     }
@@ -461,7 +456,7 @@ function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only")
 
   function createFontFamilies(layers) {
     var familyObject = {};
-    var families = selection.map(function ($style) {
+    var families = layers.map(function ($style) {
       return $style.style.sketchObject.textStyle().attributes().NSFont.familyName();
     });
     Object.values(families).forEach(function ($family) {
@@ -473,17 +468,17 @@ function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only")
   function createFontSizes(layers) {
     var fontSizesObject = {}; // Get base font-size
 
-    var baseItem = selection.filter(function ($item) {
+    var baseItem = layers.filter(function ($item) {
       return getFirstPart($item.name) == 'base';
     });
     var baseFontSize = baseItem[0].style.sketchObject.textStyle().attributes().NSFont.pointSize(); // Group smaller and items, map values only
 
-    var smallerSizes = selection.map(function ($item) {
+    var smallerSizes = layers.map(function ($item) {
       return $item.style.sketchObject.textStyle().attributes().NSFont.pointSize();
     }).filter(function ($item) {
       return $item < baseFontSize;
     });
-    var biggerSizes = selection.map(function ($item) {
+    var biggerSizes = layers.map(function ($item) {
       return $item.style.sketchObject.textStyle().attributes().NSFont.pointSize();
     }).filter(function ($item) {
       return $item > baseFontSize;

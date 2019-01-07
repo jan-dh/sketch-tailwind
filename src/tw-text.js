@@ -9,7 +9,7 @@ export default function(context){
     const options = ['All styles', 'Selected styles'];
     const selection = sketch.UI.getSelectionFromUser("What do you want to export?", options);
     const okClicked = selection[2];
-    const layers = '';
+    let layers = '';
 
     if (okClicked) {
       const target = options[selection[1]];
@@ -25,7 +25,7 @@ export default function(context){
   function setTargetLayers(target) {
     let layers = [];
     if (target == 'All styles') {
-      layers = doc.getSharedLayerStyles();
+      layers = doc.getSharedTextStyles();
     } else {
       let selection = doc.selectedLayers;
       selection.forEach((layer) => {
@@ -45,7 +45,7 @@ export default function(context){
   function createFontFamilies(layers){
     let familyObject = {};
 
-    const families = selection.map($style => $style.style.sketchObject.textStyle().attributes().NSFont.familyName());
+    const families = layers.map($style => $style.style.sketchObject.textStyle().attributes().NSFont.familyName());
     Object.values(families).forEach(($family) => {
       familyObject[$family.replace(' ','-').toLowerCase()] = $family;
     });
@@ -57,13 +57,13 @@ export default function(context){
     let fontSizesObject = {}
 
     // Get base font-size
-    let baseItem = selection.filter($item => getFirstPart($item.name) == 'base');
+    let baseItem = layers.filter($item => getFirstPart($item.name) == 'base');
     const baseFontSize = baseItem[0].style.sketchObject.textStyle().attributes().NSFont.pointSize();
 
     // Group smaller and items, map values only
-    let smallerSizes = selection.map($item => $item.style.sketchObject.textStyle().attributes().NSFont.pointSize())
+    let smallerSizes = layers.map($item => $item.style.sketchObject.textStyle().attributes().NSFont.pointSize())
                                   .filter($item => $item < baseFontSize)
-    let biggerSizes = selection.map($item => $item.style.sketchObject.textStyle().attributes().NSFont.pointSize())
+    let biggerSizes = layers.map($item => $item.style.sketchObject.textStyle().attributes().NSFont.pointSize())
                                   .filter($item => $item > baseFontSize)
 
     // Remove duplicates and sort
@@ -80,8 +80,10 @@ export default function(context){
         fontSizesObject[`${'x'.repeat(array.length - 1)}s`] = `${$size/16}rem`;
       }
     })
+
     // Push base
     fontSizesObject['base'] = `${baseFontSize/16}rem`;
+
     // Push bigger sizes
     Object.values(biggerSizes).forEach(($size, index, array) => {
       if (index == 0 ) {

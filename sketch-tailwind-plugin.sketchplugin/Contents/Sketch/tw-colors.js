@@ -400,8 +400,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _skpm_fs__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_skpm_fs__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var util__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! util */ "util");
 /* harmony import */ var util__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(util__WEBPACK_IMPORTED_MODULE_2__);
-function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only"); }
-
 
 
 
@@ -416,7 +414,7 @@ function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only")
 
     if (okClicked) {
       var target = options[selection[1]];
-      layers = (_readOnlyError("layers"), setTargetLayers(target));
+      layers = setTargetLayers(target);
 
       if (layers.length) {
         createFile(layers);
@@ -438,7 +436,7 @@ function _readOnlyError(name) { throw new Error("\"" + name + "\" is read-only")
       });
     }
 
-    return layers;
+    console.log(layers); // return layers
   }
 
   function createFile(layers) {
