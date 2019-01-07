@@ -38,11 +38,11 @@ let colors = {
 }
 ```
 
-### Tailwind colors
+### Tailwind text
 
 Exports the font-families and font-weights from Text Styles. 
 
-### Text Sizes
+#### Textsizes
 In order to get the correct text-size, the plugin will look for a Text Style that begins with the name `base/`. It will then add the remaining sizes as such
 
 ```
