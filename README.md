@@ -13,11 +13,7 @@ A plugin that tries to bridge the gap between designs and code. Sketch Tailwind 
 
 ## Installation
 
-Install the dependencies
-
-```
-npm i
-```
+Download the ZIP-folder. After extracting, double-click the `💎sketch-tailwind-plugin.sketchplugin` file. 
 
 ## Usage
 
@@ -62,9 +58,9 @@ xl
 ```
 
 ## Roadmap
-- Test current setup
-- Add Plugin Icon and 🚀
-- Add more possible exports, maybe create a styleguide template in Sketch with correct naming conventions in place.
+- 🛠 Test current setup
+- 🔥 Add Plugin Icon 
+- 🚀 Add more possible exports, maybe create a styleguide template in Sketch with correct naming conventions in place.
 
 ## License
 
