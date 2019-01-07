@@ -33,8 +33,7 @@ export default function(context){
         layers.push(layer);
       });
     }
-    console.log(layers);
-    // return layers
+    return layers
   }
 
   function createFile(layers) {
