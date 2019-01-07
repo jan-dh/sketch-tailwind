@@ -1,0 +1,29 @@
+{
+  "name": "sketch-tailwind",
+  "version": "0.1.0",
+  "engines": {
+    "sketch": ">=3.0"
+  },
+  "skpm": {
+    "name": "sketch-tailwind-plugin",
+    "manifest": "src/manifest.json",
+    "main": "sketch-tailwind-plugin.sketchplugin",
+    "assets": [
+      "assets/**/*"
+    ]
+  },
+  "scripts": {
+    "build": "skpm-build",
+    "watch": "skpm-build --watch",
+    "start": "skpm-build --watch --run",
+    "postinstall": "npm run build && skpm-link"
+  },
+  "devDependencies": {
+    "@skpm/builder": "^0.5.2"
+  },
+  "author": "Jan <jan.dhollander84@gmail.be>",
+  "dependencies": {
+    "@skpm/fs": "^0.2.2",
+    "util": "^0.11.1"
+  }
+}
