@@ -61,7 +61,7 @@ xl
 - 🛠 Test current setup
 - 🔥 Add Plugin Icon 
 - 🚀 Add more possible exports
-- 🎨 Maybe create a styleguide template in Sketch with correct naming conventions in place.
+- 🎨 Create a styleguide template for Sketch with correct naming conventions in place
 
 ## License
 
