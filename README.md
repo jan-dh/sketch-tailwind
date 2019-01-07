@@ -43,7 +43,7 @@ let colors = {
 Exports the font-families and font-weights from Text Styles. 
 
 #### Textsizes
-In order to get the correct text-size, the plugin will look for a Text Style that begins with the name `base/`. It will then add the remaining sizes as such
+In order to get the correct text-size, the plugin will look for a Text Style that begins with the name `base/`. It will then add the remaining sizes as such:
 
 ```
 xxs
