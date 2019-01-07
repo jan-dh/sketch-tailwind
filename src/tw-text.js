@@ -58,7 +58,11 @@ export default function(context){
 
     // Get base font-size
     let baseItem = layers.filter($item => getFirstPart($item.name) == 'base');
-    const baseFontSize = baseItem[0].style.sketchObject.textStyle().attributes().NSFont.pointSize();
+    let baseFontSize = 16;
+
+    if (baseItem.length > 1 && typeof baseItem == 'object') {
+      baseFontSize = baseItem[0].style.sketchObject.textStyle().attributes().NSFont.pointSize();
+    }
 
     // Group smaller and items, map values only
     let smallerSizes = layers.map($item => $item.style.sketchObject.textStyle().attributes().NSFont.pointSize())
@@ -94,6 +98,7 @@ export default function(context){
         fontSizesObject[`${'x'.repeat(index)}xl`] = `${$size/16}rem`;
       }
     })
+
     return fontSizesObject;
   }
 

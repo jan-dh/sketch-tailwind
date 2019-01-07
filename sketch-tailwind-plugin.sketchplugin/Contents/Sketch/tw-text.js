@@ -408,6 +408,8 @@ function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.
 
 function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
 
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 
 
 
@@ -471,7 +473,12 @@ function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr
     var baseItem = layers.filter(function ($item) {
       return getFirstPart($item.name) == 'base';
     });
-    var baseFontSize = baseItem[0].style.sketchObject.textStyle().attributes().NSFont.pointSize(); // Group smaller and items, map values only
+    var baseFontSize = 16;
+
+    if (baseItem.length > 1 && _typeof(baseItem) == 'object') {
+      baseFontSize = baseItem[0].style.sketchObject.textStyle().attributes().NSFont.pointSize();
+    } // Group smaller and items, map values only
+
 
     var smallerSizes = layers.map(function ($item) {
       return $item.style.sketchObject.textStyle().attributes().NSFont.pointSize();
