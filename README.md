@@ -60,7 +60,8 @@ xl
 ## Roadmap
 - 🛠 Test current setup
 - 🔥 Add Plugin Icon 
-- 🚀 Add more possible exports, maybe create a styleguide template in Sketch with correct naming conventions in place.
+- 🚀 Add more possible exports
+- 🎨 Maybe create a styleguide template in Sketch with correct naming conventions in place.
 
 ## License
 
