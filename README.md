@@ -8,7 +8,7 @@ A plugin that tries to bridge the gap between designs and code. Sketch Tailwind 
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Credits](#credits)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Installation
