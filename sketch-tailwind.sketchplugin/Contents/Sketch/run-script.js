@@ -2838,6 +2838,7 @@ __webpack_require__.r(__webpack_exports__);
   }); // Pass the state to the window
 
   webContents.on('did-finish-load', () => {
+    // Hardcoded test-data
     const state = {
       colors: [{
         name: 'red-dark',
@@ -2853,7 +2854,7 @@ __webpack_require__.r(__webpack_exports__);
         hex: '#ff8600'
       }],
       fontFamilies: {
-        'Pro Sans pipi kaka': 'pro-sans',
+        'Pro Sans': 'pro-sans',
         'Addelle': 'addelle'
       },
       fontSizes: {

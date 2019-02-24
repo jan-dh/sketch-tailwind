@@ -32695,7 +32695,7 @@ __webpack_require__.r(__webpack_exports__);
 
 Object(react_dom__WEBPACK_IMPORTED_MODULE_1__["render"])(react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_components_App__WEBPACK_IMPORTED_MODULE_2__["default"], {
   ref: appComponent => {
-    window.ourComponent = appComponent;
+    window.appComponent = appComponent;
   }
 }), document.getElementById("main"));
 
