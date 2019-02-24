@@ -1,0 +1,24 @@
+{
+  "compatibleVersion": 3,
+  "bundleVersion": 1,
+  "commands": [
+    {
+      "name": "Create theme",
+      "identifier": "run-script",
+      "script": "run-script.js"
+    }
+  ],
+  "menu": {
+    "title": "Sketch Tailwind",
+    "items": [
+      "run-script"
+    ]
+  },
+  "version": "0.1.0",
+  "name": "sketch-tailwind",
+  "identifier": "sketch-tailwind",
+  "disableCocoaScriptPreprocessor": true,
+  "appcast": "https://raw.githubusercontent.com//master/.appcast.xml",
+  "author": "Jan",
+  "authorEmail": "jan.dhollander84@gmail.com"
+}

@@ -5,9 +5,9 @@
     "sketch": ">=3.0"
   },
   "skpm": {
-    "name": "sketch-tailwind-plugin",
+    "name": "sketch-tailwind",
     "manifest": "src/manifest.json",
-    "main": "sketch-tailwind-plugin.sketchplugin",
+    "main": "sketch-tailwind.sketchplugin",
     "assets": [
       "assets/**/*"
     ]
@@ -15,15 +15,28 @@
   "scripts": {
     "build": "skpm-build",
     "watch": "skpm-build --watch",
-    "start": "skpm-build --watch --run",
+    "start": "skpm-build --watch",
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@skpm/builder": "^0.5.2"
+    "@babel/plugin-proposal-class-properties": "^7.3.3",
+    "@skpm/builder": "^0.5.11",
+    "@skpm/extract-loader": "^2.0.2",
+    "babel-preset-react": "^6.24.1",
+    "css-loader": "^1.0.1",
+    "html-loader": "^0.5.1",
+    "prism-react-renderer": "^0.1.5",
+    "react": "^16.8.3",
+    "react-dom": "^16.8.3",
+    "react-router-dom": "^4.3.1"
   },
-  "author": "Jan <jan.dhollander84@gmail.be>",
+  "resources": [
+    "resources/**/*.js"
+  ],
   "dependencies": {
-    "@skpm/fs": "^0.2.2",
+    "@skpm/fs": "^0.2.4",
+    "sketch-module-web-view": "^2.1.5",
     "util": "^0.11.1"
-  }
+  },
+  "author": "Jan <jan.dhollander84@gmail.com>"
 }
