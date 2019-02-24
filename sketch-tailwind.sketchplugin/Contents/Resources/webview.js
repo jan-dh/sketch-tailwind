@@ -32717,8 +32717,7 @@ document.addEventListener("contextmenu", function (e) {
   e.preventDefault();
 }); // Set initial state
 
-window.setInitialState = function (state) {
-  const test = state; // This should work
+window.setInitialState = function (state) {// This should work - but it doesn't
   //  window.appComponent.loadInitialState(JSON.parse(state));
 };
 
