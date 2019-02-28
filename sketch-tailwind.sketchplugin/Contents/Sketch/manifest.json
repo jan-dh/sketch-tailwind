@@ -1,0 +1,30 @@
+{
+  "compatibleVersion": 3,
+  "bundleVersion": 1,
+  "commands": [
+    {
+      "name": "Export theme",
+      "identifier": "run-script",
+      "script": "run-script.js"
+    },
+    {
+      "name": "Test theme",
+      "identifier": "get-state",
+      "script": "get-state.js"
+    }
+  ],
+  "menu": {
+    "title": "Sketch Tailwind",
+    "items": [
+      "run-script"
+    ]
+  },
+  "version": "0.1.0",
+  "description": "Export your design to a theme-file you can use in your Tailwind Css config.",
+  "name": "sketch-tailwind",
+  "identifier": "sketch-tailwind",
+  "disableCocoaScriptPreprocessor": true,
+  "appcast": "https://raw.githubusercontent.com//master/.appcast.xml",
+  "author": "Jan",
+  "authorEmail": "jan.dhollander84@gmail.com"
+}

@@ -1,13 +1,14 @@
 {
   "name": "sketch-tailwind",
+  "description": "Export your design to a theme-file you can use in your Tailwind Css config.",
   "version": "0.1.0",
   "engines": {
     "sketch": ">=3.0"
   },
   "skpm": {
-    "name": "sketch-tailwind-plugin",
+    "name": "sketch-tailwind",
     "manifest": "src/manifest.json",
-    "main": "sketch-tailwind-plugin.sketchplugin",
+    "main": "sketch-tailwind.sketchplugin",
     "assets": [
       "assets/**/*"
     ]
@@ -15,15 +16,33 @@
   "scripts": {
     "build": "skpm-build",
     "watch": "skpm-build --watch",
-    "start": "skpm-build --watch --run",
+    "start": "skpm-build --watch",
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@skpm/builder": "^0.5.2"
+    "@babel/plugin-proposal-class-properties": "^7.3.3",
+    "@skpm/builder": "^0.5.11",
+    "@skpm/extract-loader": "^2.0.2",
+    "babel-preset-react": "^6.24.1",
+    "css-loader": "^1.0.1",
+    "eslint": "^5.14.1",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-loader": "^2.1.2",
+    "eslint-plugin-import": "^2.16.0",
+    "html-loader": "^0.5.1",
+    "prism-react-renderer": "^0.1.5",
+    "prop-types": "^15.7.2",
+    "react": "^16.8.3",
+    "react-dom": "^16.8.3",
+    "react-router-dom": "^4.3.1"
   },
-  "author": "Jan <jan.dhollander84@gmail.be>",
+  "resources": [
+    "resources/**/*.js"
+  ],
   "dependencies": {
-    "@skpm/fs": "^0.2.2",
+    "@skpm/fs": "^0.2.4",
+    "sketch-module-web-view": "^2.1.5",
     "util": "^0.11.1"
-  }
+  },
+  "author": "Jan <jan.dhollander84@gmail.com>"
 }

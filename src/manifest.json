@@ -1,27 +1,22 @@
 {
-	"name": "Sketch Tailwind",
-	"description": "Export your shared layers ready to use in tailwind",
-	"author": "Jan D'Hollander",
-	"version": "0.1",
-	"compatibleVersion": 3,
-	"bundleVersion": 1,
-	"icon": "icon.png",
-	"commands": [{
-			"name": "Tailwind colors",
-			"identifier": "tailwind-color-identifier",
-			"script": "./tw-colors.js"
-		},
-		{
-			"name": "Tailwind text",
-			"identifier": "tailwind-text-identifier",
-			"script": "./tw-text.js"
-		}
-	],
-	"menu": {
-		"title": "Sketch Tailwind",
-		"items": [
-			"tailwind-color-identifier",
-			"tailwind-text-identifier"
-		]
-	}
+  "compatibleVersion": 3,
+  "bundleVersion": 1,
+  "commands": [
+    {
+      "name": "Export theme",
+      "identifier": "run-script",
+      "script": "./run-script.js"
+    },
+    {
+      "name": "Test theme",
+      "identifier": "get-state",
+      "script": "./get-state.js"
+    }
+  ],
+  "menu": {
+    "title": "Sketch Tailwind",
+    "items": [
+      "run-script"
+    ]
+  }
 }

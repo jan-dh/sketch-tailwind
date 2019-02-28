@@ -86,7 +86,7 @@ var exports =
 /******/
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = "./src/tw-colors.js");
+/******/ 	return __webpack_require__(__webpack_require__.s = "./src/get-state.js");
 /******/ })
 /************************************************************************/
 /******/ ({
@@ -101,6 +101,80 @@ var exports =
 // TODO: async. Should probably be done with NSFileHandle and some notifications
 // TODO: file descriptor. Needs to be done with NSFileHandle
 var Buffer = __webpack_require__(/*! buffer */ "buffer").Buffer
+
+var ERRORS = {
+  'EPERM': {
+    message: 'operation not permitted',
+    errno: -1
+  },
+  'ENOENT': {
+    message: 'no such file or directory',
+    errno: -2
+  },
+  'EACCES': {
+    message: 'permission denied',
+    errno: -13
+  },
+  'ENOTDIR': {
+    message: 'not a directory',
+    errno: -20
+  },
+  'EISDIR': {
+    message: 'illegal operation on a directory',
+    errno: -21
+  }
+}
+
+function fsError(code, options) {
+  var error = new Error(
+    code + ': '
+    + ERRORS[code].message + ', '
+    + (options.syscall || '')
+    + (options.path ? ' \'' + options.path + '\'' : '')
+  )
+
+  Object.keys(options).forEach(function (k) {
+    error[k] = options[k]
+  })
+
+  error.code = code
+  error.errno = ERRORS[code].errno
+
+  return error
+}
+
+function fsErrorForPath(path, shouldBeDir, err, syscall) {
+  var fileManager = NSFileManager.defaultManager()
+  var doesExist = fileManager.fileExistsAtPath(path)
+  if (!doesExist) {
+    return fsError('ENOENT', {
+      path: path,
+      syscall: syscall || 'open'
+    })
+  }
+  var isReadable = fileManager.isReadableFileAtPath(path)
+  if (!isReadable) {
+    return fsError('EACCES', {
+      path: path,
+      syscall: syscall || 'open'
+    })
+  }
+  if (typeof shouldBeDir !== 'undefined') {
+    var isDirectory = module.exports.lstatSync(path).isDirectory()
+    if (isDirectory && !shouldBeDir) {
+      return fsError('EISDIR', {
+        path: path,
+        syscall: syscall || 'read'
+      })
+    } else if (!isDirectory && shouldBeDir) {
+      return fsError('ENOTDIR', {
+        path: path,
+        syscall: syscall || 'read'
+      })
+    }
+  }
+  return new Error(err || ('Unknown error while manipulating ' + path))
+}
 
 function encodingFromOptions(options, defaultValue) {
   return options && options.encoding
@@ -178,7 +252,7 @@ module.exports.chmodSync = function(path, mode) {
   }, path, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(path, undefined, err.value())
   }
 }
 
@@ -188,7 +262,7 @@ module.exports.copyFileSync = function(path, dest, flags) {
   fileManager.copyItemAtPath_toPath_error(path, dest, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(path, false, err.value())
   }
 }
 
@@ -203,15 +277,25 @@ module.exports.linkSync = function(existingPath, newPath) {
   fileManager.linkItemAtPath_toPath_error(existingPath, newPath, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(existingPath, undefined, err.value())
   }
 }
 
-module.exports.mkdirSync = function(path, mode) {
-  mode = mode || 0o777
+module.exports.mkdirSync = function(path, options) {
+  var mode = 0o777
+  var recursive = false
+  if (options && options.mode) {
+    mode = options.mode
+  }
+  if (options && options.recursive) {
+    recursive = options.recursive
+  }
+  if (typeof options === "number") {
+    mode = options
+  }
   var err = MOPointer.alloc().init()
   var fileManager = NSFileManager.defaultManager()
-  fileManager.createDirectoryAtPath_withIntermediateDirectories_attributes_error(path, false, {
+  fileManager.createDirectoryAtPath_withIntermediateDirectories_attributes_error(path, recursive, {
     NSFilePosixPermissions: mode
   }, err)
 
@@ -249,6 +333,10 @@ module.exports.readFileSync = function(path, options) {
   var encoding = encodingFromOptions(options, 'buffer')
   var fileManager = NSFileManager.defaultManager()
   var data = fileManager.contentsAtPath(path)
+  if (!data) {
+    throw fsErrorForPath(path, false)
+  }
+
   var buffer = Buffer.from(data)
 
   if (encoding === 'buffer') {
@@ -266,7 +354,7 @@ module.exports.readlinkSync = function(path) {
   var result = fileManager.destinationOfSymbolicLinkAtPath_error(path, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(path, undefined, err.value())
   }
 
   return String(result)
@@ -281,30 +369,40 @@ module.exports.renameSync = function(oldPath, newPath) {
   var fileManager = NSFileManager.defaultManager()
   fileManager.moveItemAtPath_toPath_error(oldPath, newPath, err)
 
-  if (err.value() !== null) {
-    throw new Error(err.value())
+  var error = err.value()
+
+  if (error !== null) {
+    // if there is already a file, we need to overwrite it
+    if (String(error.domain()) === 'NSCocoaErrorDomain' && Number(error.code()) === 516) {
+      var err2 = MOPointer.alloc().init()
+      fileManager.replaceItemAtURL_withItemAtURL_backupItemName_options_resultingItemURL_error(NSURL.fileURLWithPath(newPath), NSURL.fileURLWithPath(oldPath), null, NSFileManagerItemReplacementUsingNewMetadataOnly, null, err2)
+      if (err2.value() !== null) {
+        throw fsErrorForPath(oldPath, undefined, err2.value())
+      }
+    } else {
+      throw fsErrorForPath(oldPath, undefined, error)
+    }
   }
 }
 
 module.exports.rmdirSync = function(path) {
   var err = MOPointer.alloc().init()
   var fileManager = NSFileManager.defaultManager()
+  var isDirectory = module.exports.lstatSync(path).isDirectory()
+  if (!isDirectory) {
+    throw fsError('ENOTDIR', {
+      path: path,
+      syscall: 'rmdir'
+    })
+  }
   fileManager.removeItemAtPath_error(path, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(path, true, err.value(), 'rmdir')
   }
 }
 
-module.exports.statSync = function(path) {
-  var err = MOPointer.alloc().init()
-  var fileManager = NSFileManager.defaultManager()
-  var result = fileManager.attributesOfItemAtPath_error(path, err)
-
-  if (err.value() !== null) {
-    throw new Error(err.value())
-  }
-
+function parseStat(result) {
   return {
     dev: String(result.NSFileDeviceIdentifier),
     // ino: 48064969, The file system specific "Inode" number for the file.
@@ -334,6 +432,28 @@ module.exports.statSync = function(path) {
   }
 }
 
+module.exports.lstatSync = function(path) {
+  var err = MOPointer.alloc().init()
+  var fileManager = NSFileManager.defaultManager()
+  var result = fileManager.attributesOfItemAtPath_error(path, err)
+
+  if (err.value() !== null) {
+    throw fsErrorForPath(path, undefined, err.value())
+  }
+
+  return parseStat(result)
+}
+
+// the only difference with lstat is that we resolve symlinks
+//
+// > lstat() is identical to stat(), except that if pathname is a symbolic
+// > link, then it returns information about the link itself, not the file
+// > that it refers to.
+// http://man7.org/linux/man-pages/man2/lstat.2.html
+module.exports.statSync = function(path) {
+  return module.exports.lstatSync(module.exports.realpathSync(path))
+}
+
 module.exports.symlinkSync = function(target, path) {
   var err = MOPointer.alloc().init()
   var fileManager = NSFileManager.defaultManager()
@@ -353,10 +473,17 @@ module.exports.truncateSync = function(path, len) {
 module.exports.unlinkSync = function(path) {
   var err = MOPointer.alloc().init()
   var fileManager = NSFileManager.defaultManager()
+  var isDirectory = module.exports.lstatSync(path).isDirectory()
+  if (isDirectory) {
+    throw fsError('EPERM', {
+      path: path,
+      syscall: 'unlink'
+    })
+  }
   var result = fileManager.removeItemAtPath_error(path, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(path, false, err.value())
   }
 }
 
@@ -368,7 +495,7 @@ module.exports.utimesSync = function(path, aTime, mTime) {
   }, path, err)
 
   if (err.value() !== null) {
-    throw new Error(err.value())
+    throw fsErrorForPath(path, undefined, err.value())
   }
 }
 
@@ -385,9 +512,9 @@ module.exports.writeFileSync = function(path, data, options) {
 
 /***/ }),
 
-/***/ "./src/tw-colors.js":
+/***/ "./src/get-state.js":
 /*!**************************!*\
-  !*** ./src/tw-colors.js ***!
+  !*** ./src/get-state.js ***!
   \**************************/
 /*! exports provided: default */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
@@ -396,89 +523,100 @@ module.exports.writeFileSync = function(path, data, options) {
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var sketch__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! sketch */ "sketch");
 /* harmony import */ var sketch__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(sketch__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _skpm_fs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @skpm/fs */ "./node_modules/@skpm/fs/index.js");
-/* harmony import */ var _skpm_fs__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_skpm_fs__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var util__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! util */ "util");
-/* harmony import */ var util__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(util__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _helpers__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./helpers */ "./src/helpers.js");
+/* harmony import */ var _skpm_fs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @skpm/fs */ "./node_modules/@skpm/fs/index.js");
+/* harmony import */ var _skpm_fs__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_skpm_fs__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var util__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! util */ "util");
+/* harmony import */ var util__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(util__WEBPACK_IMPORTED_MODULE_3__);
 
 
 
-/* harmony default export */ __webpack_exports__["default"] = (function (context) {
-  var doc = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.fromNative(context.document);
 
-  function popUp() {
-    var options = ['All styles', 'Selected styles'];
-    var selection = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.UI.getSelectionFromUser("What do you want to export?", options);
-    var okClicked = selection[2];
-    var layers = '';
+/* harmony default export */ __webpack_exports__["default"] = (function () {
+  const doc = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.fromNative(context.document);
+  const layers = doc.getSharedLayerStyles();
+  const textLayers = doc.getSharedTextStyles();
+  const state = {}; // Get colors
 
-    if (okClicked) {
-      var target = options[selection[1]];
-      layers = setTargetLayers(target);
+  function getColors(layers) {
+    let colors = [];
+    Object.values(layers).forEach(($layer, i) => {
+      const color = {}; // Name
 
-      if (layers.length) {
-        createFile(layers);
-      } else {
-        sketch__WEBPACK_IMPORTED_MODULE_0___default.a.UI.message('No layers selected');
-      }
-    }
-  }
+      color.name = Object(_helpers__WEBPACK_IMPORTED_MODULE_1__["getLastPart"])($layer.name);
+      const hex = $layer.style.fills[0].color; // Clean hex
 
-  function setTargetLayers(target) {
-    var layers = [];
+      color.hex = hex.substr(0, 7); // Add color
 
-    if (target == 'All styles') {
-      layers = doc.getSharedLayerStyles();
-    } else {
-      var selection = doc.selectedLayers;
-      selection.forEach(function (layer) {
-        layers.push(layer);
-      });
-    }
-
-    return layers;
-  }
-
-  function createFile(layers) {
-    var colorStyles = {};
-    Object.values(layers).forEach(function ($layer) {
-      var name = getLastPart($layer.name);
-      var hex = $layer.style.fills[0].color;
-      var cleanHex = hex.substr(0, 7);
-      colorStyles[name] = cleanHex;
+      colors[i] = color;
     });
-    saveFile(colorStyles);
-  }
-
-  function getLastPart(name) {
-    // Check if the name contains a path info, if so, remove it
-    if (name.indexOf('/') !== -1) {
-      name = name.substr(name.lastIndexOf('/') + 1);
-    }
-
-    return name.toLowerCase();
-  }
-
-  function saveFile(styles) {
-    var save = NSSavePanel.savePanel();
-    save.setNameFieldStringValue("colors.js");
-    save.setAllowedFileTypes(["js"]);
-    save.setAllowsOtherFileTypes(false);
-    save.setExtensionHidden(true);
-
-    if (save.runModal()) {
-      var path = save.URL().path();
-      _skpm_fs__WEBPACK_IMPORTED_MODULE_1___default.a.writeFileSync(path, "let colors = ".concat(util__WEBPACK_IMPORTED_MODULE_2___default.a.inspect(styles, {
-        depth: null
-      })), 'utf8');
-      sketch__WEBPACK_IMPORTED_MODULE_0___default.a.UI.message("Colors exported");
-    }
-  } // Initialize
+    return colors;
+  } // Get font family
 
 
-  popUp();
+  function getFontFamilies(layers) {
+    const names = layers.map($layer => $layer.style.sketchObject.textStyle().attributes().NSFont.familyName());
+    const fontFamilies = names.map(name => ({
+      name: String(name),
+      value: String(name).replace(/\s+/g, '-').toLowerCase()
+    })); // Remove duplicates
+
+    const cleanFamilies = fontFamilies.map(e => e['name']).map((e, i, final) => final.indexOf(e) === i && i).filter(e => fontFamilies[e]).map(e => fontFamilies[e]);
+    return cleanFamilies;
+  } // Get Font sizes
+
+
+  function getFontSizes(layers) {
+    let fontSizes = {};
+    const sizes = layers.map($layer => $layer.style.sketchObject.textStyle().attributes().NSFont.pointSize());
+    Object.values(sizes).forEach($size => {
+      // Set empty text for each size
+      fontSizes[$size] = '';
+    });
+    return fontSizes;
+  } // Set state
+
+
+  state.colors = getColors(layers);
+  state.fontSizes = getFontSizes(textLayers);
+  state.fontFamilies = getFontFamilies(textLayers); // Save File for testing
+  // function saveFile(theme) {
+  //   const save = NSSavePanel.savePanel();
+  //   save.setNameFieldStringValue("theme.js");
+  //   save.setAllowedFileTypes(["js"]);
+  //   save.setAllowsOtherFileTypes(false);
+  //   save.setExtensionHidden(true);
+  //
+  //   if (save.runModal()) {
+  //     const path = save.URL().path();
+  //     fs.writeFileSync(path, `const theme = ${util.inspect(theme, { depth: null })}`, 'utf8');
+  //     sketch.UI.message("Theme exported");
+  //   }
+  // }
+  // saveFile(state);
+
+  return state;
 });
-;
+
+/***/ }),
+
+/***/ "./src/helpers.js":
+/*!************************!*\
+  !*** ./src/helpers.js ***!
+  \************************/
+/*! exports provided: getLastPart */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getLastPart", function() { return getLastPart; });
+function getLastPart(name) {
+  if (name.indexOf('/') !== -1) {
+    name = name.substr(name.lastIndexOf('/') + 1);
+  }
+
+  return name.toLowerCase();
+}
 
 /***/ }),
 
@@ -524,4 +662,4 @@ module.exports = require("util");
 }
 that['onRun'] = __skpm_run.bind(this, 'default')
 
-//# sourceMappingURL=tw-colors.js.map
+//# sourceMappingURL=get-state.js.map
