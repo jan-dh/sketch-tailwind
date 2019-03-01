@@ -13,6 +13,10 @@
       "assets/**/*"
     ]
   },
+  "repository": {
+   "url": "https://github.com/jan-dh/sketch-tailwind"
+  },
+  "license": "MIT",
   "scripts": {
     "build": "skpm-build",
     "watch": "skpm-build --watch",
