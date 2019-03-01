@@ -1,6 +1,6 @@
 # Sketch Tailwind
 
-A plugin that tries to bridge the gap between designs and code. Sketch Tailwind lets you export aspects of a design made in Sketch to javascript files that are ready to use with Tailwind CSS.
+A plugin that tries to bridge the gap between design and code. Sketch Tailwind lets you export aspects of a design made in Sketch to a javascript `theme` file that can be easily used with Tailwind CSS.
 
 --- 
 
@@ -17,52 +17,33 @@ Download the ZIP-folder. After extracting, double-click the `💎sketch-tailwind
 
 ## Usage
 
-Sketch Tailwind has a couple of different tasks that each export an aspect of a Sketch document (colors, fonts, ... ) to a javascript file that is compatible with a Tailwind CSS config. Some files can be directly imported (e.g. `colors.js`), other require a bit of copy/pasting. 
+### Creating your theme
+The plugin gets it's info from the Layer Styles and Text Styles. At this point it picks up:
+- colors
+- font-families
+- text-sizes. 
 
-For naming conventions it's handy (though not necessary) that you name your Sketch Layer Styles and your Text Styles similarly with the `tailwind.js` config file.
+When you export the theme it saves a file with your theme in a variable `theme` and there's an export available in the file.
 
-### Tailwind colors
-
-Exports all the colors from Layer Styles, either from selected layers or all the documents layers. For naming convention it looks at the last-part of your Layer Style name.
-
+### Importing your theme
+Import the `theme.js` file in to your `tailwind.js` configuration file. 
 ```
-red
-homepage/red-dark
+import theme from './theme';
 ```
-will be exported as `colors.js` (default)
-
+Using the spread operator at the end of each property you can add the colors, fonts and font-sizes to your config.
 ```
 let colors = {
-    'red':'#cc1f1a',
-    'red-dark':'#cc1f1a'
-}
+  'transparent': 'transparent',
+  ...
+  ...theme.colors,
 ```
 
-### Tailwind text
-
-Exports the font-families and font-weights from Text Styles. 
-
-#### Textsizes
-In order to get the correct text-size, the plugin will look for a Text Style that begins with the name `base/`. It will then add the remaining sizes as such:
-
-```
-xxs
-xs
-sm
-base - provided by naming convention
-lg
-xl
-2xl
-3xl
-...
-```
+## Contributing
+All feedback is welcome. Feel free to submit [issues or suggestions](https://github.com/jan-dh/sketch-tailwind/issues).  
 
 ## Roadmap
-- 🛠 Test current setup
 - 🔥 Add Plugin Icon 
 - 🚀 Add more possible exports
-- 🎨 Create a styleguide template for Sketch with correct naming conventions in place
 
 ## License
-
 This project is licensed under the terms of the MIT license.
