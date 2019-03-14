@@ -21,7 +21,7 @@ Download the ZIP-folder. After extracting, double-click the `💎sketch-tailwind
 The plugin gets it's info from the Layer Styles and Text Styles. At this point it picks up:
 - colors
 - font-families
-- text-sizes. 
+- text-sizes
 
 ### Colors
 For the colors the plugin will look at all your Layer Styles and takes each color, using the last part of it's name (behind the last /). This way you can still organize your colors in Sketch using subfolders, while only exporting the actual color name. Within the plugin you can add some extra colors if you need to. Might add a color-picker if people would like to see that.
