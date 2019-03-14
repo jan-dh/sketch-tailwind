@@ -23,9 +23,32 @@ The plugin gets it's info from the Layer Styles and Text Styles. At this point i
 - font-families
 - text-sizes. 
 
-When you export the theme it saves a file with your theme in a variable `theme` and there's an export available in the file.
+### Colors
+For the colors the plugin will look at all your Layer Styles and takes each color, using the last part of it's name (behind the last /). This way you can still organize your colors in Sketch using subfolders, while only exporting the actual color name. Within the plugin you can add some extra colors if you need to. Might add a color-picker if people would like to see that.
+
+### Font-families
+The plugin will pick up all font-families used in your Text Layers.
+
+### Text-sizes
+All the different font-sizes you use in your Text Styles will be picked up by the plugin. You can pick a base font-size and the rest of the font-size names are calculated accordingly. The logic used:
+
+```javascript
+...
+'3xs'
+'2xs'
+'xs'
+'sm'
+'base'
+'lg'
+'xl'
+'2xl'
+'3xl'
+...
+```
+The font-sizes the plugin spits out will also be converted into a rem based scale (with 16 as your base).
 
 ### Importing your theme
+When you export the theme it saves a file with your theme in a variable `theme` and there's an export available in the file.
 Import the `theme.js` file in to your `tailwind.js` configuration file. 
 ```
 import theme from './theme';
