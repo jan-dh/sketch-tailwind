@@ -1,6 +1,6 @@
 # Sketch Tailwind
 
-A plugin that tries to bridge the gap between design and code. Sketch Tailwind lets you export aspects of a design made in Sketch to a javascript `theme` file that can be easily used with Tailwind CSS.
+A plugin that tries to bridge the gap between design and code. Sketch Tailwind lets you export aspects of a design made in Sketch to a javascript `theme` file that can easily be  used with Tailwind CSS.
 
 --- 
 
