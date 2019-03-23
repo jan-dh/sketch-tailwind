@@ -58,21 +58,5 @@ export default function() {
   state.fontSizes = getFontSizes(textLayers);
   state.fontFamilies = getFontFamilies(textLayers);
 
-  // Save File for testing
-  // function saveFile(theme) {
-  //   const save = NSSavePanel.savePanel();
-  //   save.setNameFieldStringValue("theme.js");
-  //   save.setAllowedFileTypes(["js"]);
-  //   save.setAllowsOtherFileTypes(false);
-  //   save.setExtensionHidden(true);
-  //
-  //   if (save.runModal()) {
-  //     const path = save.URL().path();
-  //     fs.writeFileSync(path, `const theme = ${util.inspect(theme, { depth: null })}`, 'utf8');
-  //     sketch.UI.message("Theme exported");
-  //   }
-  // }
-  // saveFile(state);
-
   return state;
 }

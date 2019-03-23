@@ -23,8 +23,6 @@ export default function() {
   }
   const browserWindow = new BrowserWindow(options)
   const state = getState();
-  // console.log(state);
-  // console.log(JSON.stringify(state));
 
   // pass in data to the BrowserWindow
   browserWindow.webContents.insertJS(
