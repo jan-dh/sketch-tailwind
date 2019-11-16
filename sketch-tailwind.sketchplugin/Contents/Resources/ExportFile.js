@@ -2053,11 +2053,28 @@ var Highlight =
 function (_Component) {
   _inheritsLoose(Highlight, _Component);
 
-  function Highlight(props) {
+  function Highlight() {
     var _this;
 
-    _this = _Component.call(this, props) || this;
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+
+    _this = _Component.call.apply(_Component, [this].concat(args)) || this;
+    _this.prevTheme = void 0;
+    _this.prevLanguage = void 0;
     _this.themeDict = void 0;
+
+    _this.getThemeDict = function (props) {
+      if (_this.themeDict !== undefined && props.theme === _this.prevTheme && props.language === _this.prevLanguage) {
+        return _this.themeDict;
+      }
+
+      _this.prevTheme = props.theme;
+      _this.prevLanguage = props.language;
+      var themeDict = props.theme ? Object(_utils_themeToDict__WEBPACK_IMPORTED_MODULE_2__["default"])(props.theme, props.language) : undefined;
+      return _this.themeDict = themeDict;
+    };
 
     _this.getLineProps = function (_ref) {
       var key = _ref.key,
@@ -2072,8 +2089,10 @@ function (_Component) {
         key: undefined
       });
 
-      if (_this.themeDict !== undefined) {
-        output.style = _this.themeDict.plain;
+      var themeDict = _this.getThemeDict(_this.props);
+
+      if (themeDict !== undefined) {
+        output.style = themeDict.plain;
       }
 
       if (style !== undefined) {
@@ -2090,14 +2109,16 @@ function (_Component) {
           empty = _ref2.empty;
       var typesSize = types.length;
 
-      if (_this.themeDict === undefined) {
+      var themeDict = _this.getThemeDict(_this.props);
+
+      if (themeDict === undefined) {
         return undefined;
       } else if (typesSize === 1 && types[0] === "plain") {
         return empty ? {
           display: "inline-block"
         } : undefined;
       } else if (typesSize === 1 && !empty) {
-        return _this.themeDict[types[0]];
+        return themeDict[types[0]];
       }
 
       var baseStyle = empty ? {
@@ -2105,7 +2126,7 @@ function (_Component) {
       } : {}; // $FlowFixMe
 
       var typeStyles = types.map(function (type) {
-        return _this.themeDict[type];
+        return themeDict[type];
       });
       return Object.assign.apply(Object, [baseStyle].concat(typeStyles));
     };
@@ -2133,10 +2154,6 @@ function (_Component) {
       return output;
     };
 
-    if (props.theme) {
-      _this.themeDict = Object(_utils_themeToDict__WEBPACK_IMPORTED_MODULE_2__["default"])(props.theme, props.language);
-    }
-
     return _this;
   }
 
@@ -2148,13 +2165,14 @@ function (_Component) {
         language = _this$props.language,
         code = _this$props.code,
         children = _this$props.children;
+    var themeDict = this.getThemeDict(this.props);
     var grammar = Prism.languages[language];
     var mixedTokens = grammar !== undefined ? Prism.tokenize(code, grammar, language) : [code];
     var tokens = Object(_utils_normalizeTokens__WEBPACK_IMPORTED_MODULE_1__["default"])(mixedTokens);
     return children({
       tokens: tokens,
       className: "prism-code language-" + language,
-      style: this.themeDict ? this.themeDict.root : {},
+      style: themeDict !== undefined ? themeDict.root : {},
       getLineProps: this.getLineProps,
       getTokenProps: this.getTokenProps
     });
@@ -2235,6 +2253,16 @@ var normalizeEmptyLines = function normalizeEmptyLines(line) {
   } else if (line.length === 1 && line[0].content === "") {
     line[0].empty = true;
   }
+};
+
+var appendTypes = function appendTypes(types, add) {
+  var typesSize = types.length;
+
+  if (typesSize > 0 && types[typesSize - 1] === add) {
+    return types;
+  }
+
+  return types.concat(add);
 }; // Takes an array of Prism's tokens and groups them by line, turning plain
 // strings into tokens as well. Tokens can become recursive in some cases,
 // which means that their types are concatenated. Plain-string tokens however
@@ -2264,7 +2292,12 @@ var normalizeTokens = function normalizeTokens(tokens) {
         types = stackIndex > 0 ? types : ["plain"];
         content = token;
       } else {
-        types = types[0] === token.type ? types : types.concat(token.type);
+        types = appendTypes(types, token.type);
+
+        if (token.alias) {
+          types = appendTypes(types, token.alias);
+        }
+
         content = token.content;
       } // If token.content is an array, increase the stack depth and repeat this while-loop
 
@@ -2379,7 +2412,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup = {
   'doctype': /<!DOCTYPE[\s\S]+?>/i,
   'cdata': /<!\[CDATA\[[\s\S]*?]]>/i,
   'tag': {
-    pattern: /<\/?(?!\d)[^\s>\/=$<%]+(?:\s+[^\s>\/=]+(?:=(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s'">=]+))?)*\s*\/?>/i,
+    pattern: /<\/?(?!\d)[^\s>\/=$<%]+(?:\s(?:\s*[^\s>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+(?=[\s>]))|(?=[\s/>])))+)?\s*\/?>/i,
     greedy: true,
     inside: {
       'tag': {
@@ -2390,10 +2423,10 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup = {
         }
       },
       'attr-value': {
-        pattern: /=(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s'">=]+)/i,
+        pattern: /=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+)/i,
         inside: {
           'punctuation': [/^=/, {
-            pattern: /(^|[^\\])["']/,
+            pattern: /^(\s*)["']|["']$/,
             lookbehind: true
           }]
         }
@@ -2416,7 +2449,47 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.hooks.add('wrap', function (e
     env.attributes['title'] = env.content.replace(/&amp;/, '&');
   }
 });
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.xml = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup;
+Object.defineProperty(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup.tag, 'addInlined', {
+  /**
+   * Adds an inlined language to markup.
+   *
+   * An example of an inlined language is CSS with `<style>` tags.
+   *
+   * @param {string} tagName The name of the tag that contains the inlined language. This name will be treated as
+   * case insensitive.
+   * @param {string} lang The language key.
+   * @example
+   * addInlined('style', 'css');
+   */
+  value: function addInlined(tagName, lang) {
+    var includedCdataInside = {};
+    includedCdataInside['language-' + lang] = {
+      pattern: /(^<!\[CDATA\[)[\s\S]+?(?=\]\]>$)/i,
+      lookbehind: true,
+      inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages[lang]
+    };
+    includedCdataInside['cdata'] = /^<!\[CDATA\[|\]\]>$/i;
+    var inside = {
+      'included-cdata': {
+        pattern: /<!\[CDATA\[[\s\S]*?\]\]>/i,
+        inside: includedCdataInside
+      }
+    };
+    inside['language-' + lang] = {
+      pattern: /[\s\S]+/,
+      inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages[lang]
+    };
+    var def = {};
+    def[tagName] = {
+      pattern: RegExp(/(<__[\s\S]*?>)(?:<!\[CDATA\[[\s\S]*?\]\]>\s*|[\s\S])*?(?=<\/__>)/.source.replace(/__/g, tagName), 'i'),
+      lookbehind: true,
+      greedy: true,
+      inside: inside
+    };
+    _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markup', 'cdata', def);
+  }
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.xml = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('markup', {});
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.html = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup;
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.mathml = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup;
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.svg = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup;
@@ -2471,7 +2544,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.svg = _prism_core__
     'variable': insideString.variable,
     // Originally based on http://ss64.com/bash/
     'function': {
-      pattern: /(^|[\s;|&])(?:alias|apropos|apt-get|aptitude|aspell|awk|basename|bash|bc|bg|builtin|bzip2|cal|cat|cd|cfdisk|chgrp|chmod|chown|chroot|chkconfig|cksum|clear|cmp|comm|command|cp|cron|crontab|csplit|curl|cut|date|dc|dd|ddrescue|df|diff|diff3|dig|dir|dircolors|dirname|dirs|dmesg|du|egrep|eject|enable|env|ethtool|eval|exec|expand|expect|export|expr|fdformat|fdisk|fg|fgrep|file|find|fmt|fold|format|free|fsck|ftp|fuser|gawk|getopts|git|grep|groupadd|groupdel|groupmod|groups|gzip|hash|head|help|hg|history|hostname|htop|iconv|id|ifconfig|ifdown|ifup|import|install|jobs|join|kill|killall|less|link|ln|locate|logname|logout|look|lpc|lpr|lprint|lprintd|lprintq|lprm|ls|lsof|make|man|mkdir|mkfifo|mkisofs|mknod|more|most|mount|mtools|mtr|mv|mmv|nano|netstat|nice|nl|nohup|notify-send|npm|nslookup|open|op|passwd|paste|pathchk|ping|pkill|popd|pr|printcap|printenv|printf|ps|pushd|pv|pwd|quota|quotacheck|quotactl|ram|rar|rcp|read|readarray|readonly|reboot|rename|renice|remsync|rev|rm|rmdir|rsync|screen|scp|sdiff|sed|seq|service|sftp|shift|shopt|shutdown|sleep|slocate|sort|source|split|ssh|stat|strace|su|sudo|sum|suspend|sync|tail|tar|tee|test|time|timeout|times|touch|top|traceroute|trap|tr|tsort|tty|type|ulimit|umask|umount|unalias|uname|unexpand|uniq|units|unrar|unshar|uptime|useradd|userdel|usermod|users|uuencode|uudecode|v|vdir|vi|vmstat|wait|watch|wc|wget|whereis|which|who|whoami|write|xargs|xdg-open|yes|zip)(?=$|[\s;|&])/,
+      pattern: /(^|[\s;|&])(?:add|alias|apropos|apt|apt-cache|apt-get|aptitude|aspell|automysqlbackup|awk|basename|bash|bc|bconsole|bg|builtin|bzip2|cal|cat|cd|cfdisk|chgrp|chkconfig|chmod|chown|chroot|cksum|clear|cmp|comm|command|cp|cron|crontab|csplit|curl|cut|date|dc|dd|ddrescue|debootstrap|df|diff|diff3|dig|dir|dircolors|dirname|dirs|dmesg|du|egrep|eject|enable|env|ethtool|eval|exec|expand|expect|export|expr|fdformat|fdisk|fg|fgrep|file|find|fmt|fold|format|free|fsck|ftp|fuser|gawk|getopts|git|gparted|grep|groupadd|groupdel|groupmod|groups|grub-mkconfig|gzip|halt|hash|head|help|hg|history|host|hostname|htop|iconv|id|ifconfig|ifdown|ifup|import|install|ip|jobs|join|kill|killall|less|link|ln|locate|logname|logout|logrotate|look|lpc|lpr|lprint|lprintd|lprintq|lprm|ls|lsof|lynx|make|man|mc|mdadm|mkconfig|mkdir|mke2fs|mkfifo|mkfs|mkisofs|mknod|mkswap|mmv|more|most|mount|mtools|mtr|mutt|mv|nano|nc|netstat|nice|nl|nohup|notify-send|npm|nslookup|op|open|parted|passwd|paste|pathchk|ping|pkill|pnpm|popd|pr|printcap|printenv|printf|ps|pushd|pv|pwd|quota|quotacheck|quotactl|ram|rar|rcp|read|readarray|readonly|reboot|remsync|rename|renice|rev|rm|rmdir|rpm|rsync|scp|screen|sdiff|sed|sendmail|seq|service|sftp|shift|shopt|shutdown|sleep|slocate|sort|source|split|ssh|stat|strace|su|sudo|sum|suspend|swapon|sync|tail|tar|tee|test|time|timeout|times|top|touch|tr|traceroute|trap|tsort|tty|type|ulimit|umask|umount|unalias|uname|unexpand|uniq|units|unrar|unshar|unzip|update-grub|uptime|useradd|userdel|usermod|users|uudecode|uuencode|vdir|vi|vim|virsh|vmstat|wait|watch|wc|wget|whereis|which|who|whoami|write|xargs|xdg-open|yarn|yes|zip|zypper)(?=$|[\s;|&])/,
       lookbehind: true
     },
     'keyword': {
@@ -2519,7 +2592,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.clike = {
   },
   'keyword': /\b(?:if|else|while|do|for|return|in|instanceof|function|new|try|throw|catch|finally|null|break|continue)\b/,
   'boolean': /\b(?:true|false)\b/,
-  'function': /[a-z0-9_]+(?=\()/i,
+  'function': /\w+(?=\()/,
   'number': /\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i,
   'operator': /--?|\+\+?|!=?=?|<=?|>=?|==?=?|&&?|\|\|?|\?|\*|\/|~|\^|%/,
   'punctuation': /[{}[\];(),.:]/
@@ -2527,9 +2600,13 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.clike = {
 /* "prismjs/components/prism-c" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.c = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('clike', {
+  'class-name': {
+    pattern: /(\b(?:enum|struct)\s+)\w+/,
+    lookbehind: true
+  },
   'keyword': /\b(?:_Alignas|_Alignof|_Atomic|_Bool|_Complex|_Generic|_Imaginary|_Noreturn|_Static_assert|_Thread_local|asm|typeof|inline|auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|int|long|register|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while)\b/,
-  'operator': /-[>-]?|\+\+?|!=?|<<?=?|>>?=?|==?|&&?|\|\|?|[~^%?*\/]/,
-  'number': /(?:\b0x[\da-f]+|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?)[ful]*/i
+  'operator': />>=?|<<=?|->|([-+&|:])\1|[?:~]|[-+*/%&|^!=<>]=?/,
+  'number': /(?:\b0x(?:[\da-f]+\.?[\da-f]*|\.[\da-f]+)(?:p[+-]?\d+)?|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?)[ful]*/i
 });
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('c', 'string', {
   'macro': {
@@ -2555,20 +2632,17 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('c', '
   // highlight predefined macros as constants
   'constant': /\b(?:__FILE__|__LINE__|__DATE__|__TIME__|__TIMESTAMP__|__func__|EOF|NULL|SEEK_CUR|SEEK_END|SEEK_SET|stdin|stdout|stderr)\b/
 });
-delete _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.c['class-name'];
 delete _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.c['boolean'];
 /* "prismjs/components/prism-cpp" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.cpp = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('c', {
+  'class-name': {
+    pattern: /(\b(?:class|enum|struct)\s+)\w+/,
+    lookbehind: true
+  },
   'keyword': /\b(?:alignas|alignof|asm|auto|bool|break|case|catch|char|char16_t|char32_t|class|compl|const|constexpr|const_cast|continue|decltype|default|delete|do|double|dynamic_cast|else|enum|explicit|export|extern|float|for|friend|goto|if|inline|int|int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t|long|mutable|namespace|new|noexcept|nullptr|operator|private|protected|public|register|reinterpret_cast|return|short|signed|sizeof|static|static_assert|static_cast|struct|switch|template|this|thread_local|throw|try|typedef|typeid|typename|union|unsigned|using|virtual|void|volatile|wchar_t|while)\b/,
   'boolean': /\b(?:true|false)\b/,
-  'operator': /--?|\+\+?|!=?|<{1,2}=?|>{1,2}=?|->|:{1,2}|={1,2}|\^|~|%|&{1,2}|\|\|?|\?|\*|\/|\b(?:and|and_eq|bitand|bitor|not|not_eq|or|or_eq|xor|xor_eq)\b/
-});
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('cpp', 'keyword', {
-  'class-name': {
-    pattern: /(class\s+)\w+/i,
-    lookbehind: true
-  }
+  'operator': />>=?|<<=?|->|([-+&|:])\1|[?:~]|[-+*/%&|^!=<>]=?|\b(?:and|and_eq|bitand|bitor|not|not_eq|or|or_eq|xor|xor_eq)\b/
 });
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('cpp', 'string', {
   'raw-string': {
@@ -2579,78 +2653,168 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('cpp',
 });
 /* "prismjs/components/prism-css" */
 
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css = {
-  'comment': /\/\*[\s\S]*?\*\//,
-  'atrule': {
-    pattern: /@[\w-]+?.*?(?:;|(?=\s*\{))/i,
-    inside: {
-      'rule': /@[\w-]+/ // See rest below
-
-    }
-  },
-  'url': /url\((?:(["'])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1|.*?)\)/i,
-  'selector': /[^{}\s][^{};]*?(?=\s*\{)/,
-  'string': {
-    pattern: /("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
-    greedy: true
-  },
-  'property': /[-_a-z\xA0-\uFFFF][-\w\xA0-\uFFFF]*(?=\s*:)/i,
-  'important': /\B!important\b/i,
-  'function': /[-a-z0-9]+(?=\()/i,
-  'punctuation': /[(){};:]/
-};
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css['atrule'].inside.rest = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css;
-
-if (_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup) {
-  _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markup', 'tag', {
-    'style': {
-      pattern: /(<style[\s\S]*?>)[\s\S]*?(?=<\/style>)/i,
-      lookbehind: true,
-      inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css,
-      alias: 'language-css',
-      greedy: true
-    }
-  });
-  _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('inside', 'attr-value', {
-    'style-attr': {
-      pattern: /\s*style=("|')(?:\\[\s\S]|(?!\1)[^\\])*\1/i,
+(function (Prism) {
+  var string = /("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/;
+  Prism.languages.css = {
+    'comment': /\/\*[\s\S]*?\*\//,
+    'atrule': {
+      pattern: /@[\w-]+?[\s\S]*?(?:;|(?=\s*\{))/i,
       inside: {
-        'attr-name': {
-          pattern: /^\s*style/i,
-          inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup.tag.inside
+        'rule': /@[\w-]+/ // See rest below
+
+      }
+    },
+    'url': RegExp('url\\((?:' + string.source + '|.*?)\\)', 'i'),
+    'selector': RegExp('[^{}\\s](?:[^{};"\']|' + string.source + ')*?(?=\\s*\\{)'),
+    'string': {
+      pattern: string,
+      greedy: true
+    },
+    'property': /[-_a-z\xA0-\uFFFF][-\w\xA0-\uFFFF]*(?=\s*:)/i,
+    'important': /!important\b/i,
+    'function': /[-a-z0-9]+(?=\()/i,
+    'punctuation': /[(){};:,]/
+  };
+  Prism.languages.css['atrule'].inside.rest = Prism.languages.css;
+  var markup = Prism.languages.markup;
+
+  if (markup) {
+    markup.tag.addInlined('style', 'css');
+    Prism.languages.insertBefore('inside', 'attr-value', {
+      'style-attr': {
+        pattern: /\s*style=("|')(?:\\[\s\S]|(?!\1)[^\\])*\1/i,
+        inside: {
+          'attr-name': {
+            pattern: /^\s*style/i,
+            inside: markup.tag.inside
+          },
+          'punctuation': /^\s*=\s*['"]|['"]\s*$/,
+          'attr-value': {
+            pattern: /.+/i,
+            inside: Prism.languages.css
+          }
         },
-        'punctuation': /^\s*=\s*['"]|['"]\s*$/,
-        'attr-value': {
-          pattern: /.+/i,
-          inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css
-        }
-      },
-      alias: 'language-css'
-    }
-  }, _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup.tag);
-}
+        alias: 'language-css'
+      }
+    }, markup.tag);
+  }
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-css-extras" */
+
+
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css.selector = {
+  pattern: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css.selector,
+  inside: {
+    'pseudo-element': /:(?:after|before|first-letter|first-line|selection)|::[-\w]+/,
+    'pseudo-class': /:[-\w]+/,
+    'class': /\.[-:.\w]+/,
+    'id': /#[-:.\w]+/,
+    'attribute': {
+      pattern: /\[(?:[^[\]"']|("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1)*\]/,
+      greedy: true,
+      inside: {
+        'punctuation': /^\[|\]$/,
+        'case-sensitivity': {
+          pattern: /(\s)[si]$/i,
+          lookbehind: true,
+          alias: 'keyword'
+        },
+        'namespace': {
+          pattern: /^(\s*)[-*\w\xA0-\uFFFF]*\|(?!=)/,
+          lookbehind: true,
+          inside: {
+            'punctuation': /\|$/
+          }
+        },
+        'attribute': {
+          pattern: /^(\s*)[-\w\xA0-\uFFFF]+/,
+          lookbehind: true
+        },
+        'value': [/("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/, {
+          pattern: /(=\s*)[-\w\xA0-\uFFFF]+(?=\s*$)/,
+          lookbehind: true
+        }],
+        'operator': /[|~*^$]?=/
+      }
+    },
+    'n-th': {
+      pattern: /(\(\s*)[+-]?\d*[\dn](?:\s*[+-]\s*\d+)?(?=\s*\))/,
+      lookbehind: true,
+      inside: {
+        'number': /[\dn]+/,
+        'operator': /[+-]/
+      }
+    },
+    'punctuation': /[()]/
+  }
+};
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('css', 'property', {
+  'variable': {
+    pattern: /(^|[^-\w\xA0-\uFFFF])--[-_a-z\xA0-\uFFFF][-\w\xA0-\uFFFF]*/i,
+    lookbehind: true
+  }
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('css', 'function', {
+  'operator': {
+    pattern: /(\s)[+\-*\/](?=\s)/,
+    lookbehind: true
+  },
+  'hexcode': /#[\da-f]{3,8}/i,
+  'entity': /\\[\da-f]{1,8}/i,
+  'unit': {
+    pattern: /(\d)(?:%|[a-z]+)/,
+    lookbehind: true
+  },
+  'number': /-?[\d.]+/
+});
 /* "prismjs/components/prism-javascript" */
 
-
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('clike', {
-  'keyword': /\b(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|var|void|while|with|yield)\b/,
-  'number': /\b(?:0[xX][\dA-Fa-f]+|0[bB][01]+|0[oO][0-7]+|NaN|Infinity)\b|(?:\b\d+\.?\d*|\B\.\d+)(?:[Ee][+-]?\d+)?/,
+  'class-name': [_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.clike['class-name'], {
+    pattern: /(^|[^$\w\xA0-\uFFFF])[_$A-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\.(?:prototype|constructor))/,
+    lookbehind: true
+  }],
+  'keyword': [{
+    pattern: /((?:^|})\s*)(?:catch|finally)\b/,
+    lookbehind: true
+  }, {
+    pattern: /(^|[^.])\b(?:as|async(?=\s*(?:function\b|\(|[$\w\xA0-\uFFFF]|$))|await|break|case|class|const|continue|debugger|default|delete|do|else|enum|export|extends|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)\b/,
+    lookbehind: true
+  }],
+  'number': /\b(?:(?:0[xX][\dA-Fa-f]+|0[bB][01]+|0[oO][0-7]+)n?|\d+n|NaN|Infinity)\b|(?:\b\d+\.?\d*|\B\.\d+)(?:[Ee][+-]?\d+)?/,
   // Allow for all non-ASCII characters (See http://stackoverflow.com/a/2008444)
-  'function': /[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*\()/i,
+  'function': /[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*(?:\.\s*(?:apply|bind|call)\s*)?\()/,
   'operator': /-[-=]?|\+[+=]?|!=?=?|<<?=?|>>?>?=?|=(?:==?|>)?|&[&=]?|\|[|=]?|\*\*?=?|\/=?|~|\^=?|%=?|\?|\.{3}/
 });
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript['class-name'][0].pattern = /(\b(?:class|interface|extends|implements|instanceof|new)\s+)[\w.\\]+/;
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('javascript', 'keyword', {
   'regex': {
-    pattern: /((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(\[[^\]\r\n]+]|\\.|[^/\\\[\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})\]]))/,
+    pattern: /((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(\[(?:[^\]\\\r\n]|\\.)*]|\\.|[^/\\\[\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})\]]))/,
     lookbehind: true,
     greedy: true
   },
   // This must be declared before keyword because we use "function" inside the look-forward
   'function-variable': {
-    pattern: /[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*=\s*(?:function\b|(?:\([^()]*\)|[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)\s*=>))/i,
+    pattern: /[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*[=:]\s*(?:async\s*)?(?:\bfunction\b|(?:\((?:[^()]|\([^()]*\))*\)|[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)\s*=>))/,
     alias: 'function'
   },
-  'constant': /\b[A-Z][A-Z\d_]*\b/
+  'parameter': [{
+    pattern: /(function(?:\s+[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)?\s*\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\))/,
+    lookbehind: true,
+    inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript
+  }, {
+    pattern: /[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*=>)/i,
+    inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript
+  }, {
+    pattern: /(\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*=>)/,
+    lookbehind: true,
+    inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript
+  }, {
+    pattern: /((?:\b|\s|^)(?!(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)(?![$\w\xA0-\uFFFF]))(?:[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*\s*)\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*\{)/,
+    lookbehind: true,
+    inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript
+  }],
+  'constant': /\b[A-Z](?:[A-Z_]|\dx?)*\b/
 });
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('javascript', 'string', {
   'template-string': {
@@ -2664,26 +2828,16 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('javas
             pattern: /^\${|}$/,
             alias: 'punctuation'
           },
-          rest: null // See below
-
+          rest: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript
         }
       },
       'string': /[\s\S]+/
     }
   }
 });
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript['template-string'].inside['interpolation'].inside.rest = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript;
 
 if (_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup) {
-  _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markup', 'tag', {
-    'script': {
-      pattern: /(<script[\s\S]*?>)[\s\S]*?(?=<\/script>)/i,
-      lookbehind: true,
-      inside: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript,
-      alias: 'language-javascript',
-      greedy: true
-    }
-  });
+  _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup.tag.addInlined('script', 'javascript');
 }
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.js = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.javascript;
@@ -2695,6 +2849,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.js = _prism_core__W
   Prism.languages.jsx.tag.pattern = /<\/?(?:[\w.:-]+\s*(?:\s+(?:[\w.:-]+(?:=(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s{'">=]+|\{(?:\{(?:\{[^}]*\}|[^{}])*\}|[^{}])+\}))?|\{\.{3}[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*\}))*\s*\/?)?>/i;
   Prism.languages.jsx.tag.inside['tag'].pattern = /^<\/?[^\s>\/]*/i;
   Prism.languages.jsx.tag.inside['attr-value'].pattern = /=(?!\{)(?:("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|[^\s'">]+)/i;
+  Prism.languages.jsx.tag.inside['tag'].inside['class-name'] = /^[A-Z]\w*(?:\.[A-Z]\w*)*$/;
   Prism.languages.insertBefore('inside', 'attr-name', {
     'spread': {
       pattern: /\{\.{3}[a-z_$][\w$]*(?:\.[a-z_$][\w$]*)*\}/,
@@ -2806,6 +2961,485 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.js = _prism_core__W
     walkTokens(env.tokens);
   });
 })(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-javadoclike" */
+
+
+(function (Prism) {
+  var javaDocLike = Prism.languages.javadoclike = {
+    'parameter': {
+      pattern: /(^\s*(?:\/{3}|\*|\/\*\*)\s*@(?:param|arg|arguments)\s+)\w+/m,
+      lookbehind: true
+    },
+    'keyword': {
+      // keywords are the first word in a line preceded be an `@` or surrounded by curly braces.
+      // @word, {@word}
+      pattern: /(^\s*(?:\/{3}|\*|\/\*\*)\s*|\{)@[a-z][a-zA-Z-]+\b/m,
+      lookbehind: true
+    },
+    'punctuation': /[{}]/
+  };
+  /**
+   * Adds doc comment support to the given language and calls a given callback on each doc comment pattern.
+   *
+   * @param {string} lang the language add doc comment support to.
+   * @param {(pattern: {inside: {rest: undefined}}) => void} callback the function called with each doc comment pattern as argument.
+   */
+
+  function docCommentSupport(lang, callback) {
+    var tokenName = 'doc-comment';
+    var grammar = Prism.languages[lang];
+
+    if (!grammar) {
+      return;
+    }
+
+    var token = grammar[tokenName];
+
+    if (!token) {
+      // add doc comment: /** */
+      var definition = {};
+      definition[tokenName] = {
+        pattern: /(^|[^\\])\/\*\*[^/][\s\S]*?(?:\*\/|$)/,
+        alias: 'comment'
+      };
+      grammar = Prism.languages.insertBefore(lang, 'comment', definition);
+      token = grammar[tokenName];
+    }
+
+    if (token instanceof RegExp) {
+      // convert regex to object
+      token = grammar[tokenName] = {
+        pattern: token
+      };
+    }
+
+    if (Array.isArray(token)) {
+      for (var i = 0, l = token.length; i < l; i++) {
+        if (token[i] instanceof RegExp) {
+          token[i] = {
+            pattern: token[i]
+          };
+        }
+
+        callback(token[i]);
+      }
+    } else {
+      callback(token);
+    }
+  }
+  /**
+   * Adds doc-comment support to the given languages for the given documentation language.
+   *
+   * @param {string[]|string} languages
+   * @param {Object} docLanguage
+   */
+
+
+  function addSupport(languages, docLanguage) {
+    if (typeof languages === 'string') {
+      languages = [languages];
+    }
+
+    languages.forEach(function (lang) {
+      docCommentSupport(lang, function (pattern) {
+        if (!pattern.inside) {
+          pattern.inside = {};
+        }
+
+        pattern.inside.rest = docLanguage;
+      });
+    });
+  }
+
+  Object.defineProperty(javaDocLike, 'addSupport', {
+    value: addSupport
+  });
+  javaDocLike.addSupport(['java', 'javascript', 'php'], javaDocLike);
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-java" */
+
+
+(function (Prism) {
+  var keywords = /\b(?:abstract|continue|for|new|switch|assert|default|goto|package|synchronized|boolean|do|if|private|this|break|double|implements|protected|throw|byte|else|import|public|throws|case|enum|instanceof|return|transient|catch|extends|int|short|try|char|final|interface|static|void|class|finally|long|strictfp|volatile|const|float|native|super|while|var|null|exports|module|open|opens|provides|requires|to|transitive|uses|with)\b/; // based on the java naming conventions
+
+  var className = /\b[A-Z](?:\w*[a-z]\w*)?\b/;
+  Prism.languages.java = Prism.languages.extend('clike', {
+    'class-name': [className, // variables and parameters
+    // this to support class names (or generic parameters) which do not contain a lower case letter (also works for methods)
+    /\b[A-Z]\w*(?=\s+\w+\s*[;,=())])/],
+    'keyword': keywords,
+    'function': [Prism.languages.clike.function, {
+      pattern: /(\:\:)[a-z_]\w*/,
+      lookbehind: true
+    }],
+    'number': /\b0b[01][01_]*L?\b|\b0x[\da-f_]*\.?[\da-f_p+-]+\b|(?:\b\d[\d_]*\.?[\d_]*|\B\.\d[\d_]*)(?:e[+-]?\d[\d_]*)?[dfl]?/i,
+    'operator': {
+      pattern: /(^|[^.])(?:<<=?|>>>?=?|->|([-+&|])\2|[?:~]|[-+*/%&|^!=<>]=?)/m,
+      lookbehind: true
+    }
+  });
+  Prism.languages.insertBefore('java', 'class-name', {
+    'annotation': {
+      alias: 'punctuation',
+      pattern: /(^|[^.])@\w+/,
+      lookbehind: true
+    },
+    'namespace': {
+      pattern: /(\b(?:exports|import(?:\s+static)?|module|open|opens|package|provides|requires|to|transitive|uses|with)\s+)[a-z]\w*(\.[a-z]\w*)+/,
+      lookbehind: true,
+      inside: {
+        'punctuation': /\./
+      }
+    },
+    'generics': {
+      pattern: /<(?:[\w\s,.&?]|<(?:[\w\s,.&?]|<(?:[\w\s,.&?]|<[\w\s,.&?]*>)*>)*>)*>/,
+      inside: {
+        'class-name': className,
+        'keyword': keywords,
+        'punctuation': /[<>(),.:]/,
+        'operator': /[?&|]/
+      }
+    }
+  });
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-markup-templating" */
+
+
+(function (Prism) {
+  /**
+   * Returns the placeholder for the given language id and index.
+   *
+   * @param {string} language
+   * @param {string|number} index
+   * @returns {string}
+   */
+  function getPlaceholder(language, index) {
+    return '___' + language.toUpperCase() + index + '___';
+  }
+
+  Object.defineProperties(Prism.languages['markup-templating'] = {}, {
+    buildPlaceholders: {
+      /**
+       * Tokenize all inline templating expressions matching `placeholderPattern`.
+       *
+       * If `replaceFilter` is provided, only matches of `placeholderPattern` for which `replaceFilter` returns
+       * `true` will be replaced.
+       *
+       * @param {object} env The environment of the `before-tokenize` hook.
+       * @param {string} language The language id.
+       * @param {RegExp} placeholderPattern The matches of this pattern will be replaced by placeholders.
+       * @param {(match: string) => boolean} [replaceFilter]
+       */
+      value: function value(env, language, placeholderPattern, replaceFilter) {
+        if (env.language !== language) {
+          return;
+        }
+
+        var tokenStack = env.tokenStack = [];
+        env.code = env.code.replace(placeholderPattern, function (match) {
+          if (typeof replaceFilter === 'function' && !replaceFilter(match)) {
+            return match;
+          }
+
+          var i = tokenStack.length;
+          var placeholder; // Check for existing strings
+
+          while (env.code.indexOf(placeholder = getPlaceholder(language, i)) !== -1) {
+            ++i;
+          } // Create a sparse array
+
+
+          tokenStack[i] = match;
+          return placeholder;
+        }); // Switch the grammar to markup
+
+        env.grammar = Prism.languages.markup;
+      }
+    },
+    tokenizePlaceholders: {
+      /**
+       * Replace placeholders with proper tokens after tokenizing.
+       *
+       * @param {object} env The environment of the `after-tokenize` hook.
+       * @param {string} language The language id.
+       */
+      value: function value(env, language) {
+        if (env.language !== language || !env.tokenStack) {
+          return;
+        } // Switch the grammar back
+
+
+        env.grammar = Prism.languages[language];
+        var j = 0;
+        var keys = Object.keys(env.tokenStack);
+
+        function walkTokens(tokens) {
+          for (var i = 0; i < tokens.length; i++) {
+            // all placeholders are replaced already
+            if (j >= keys.length) {
+              break;
+            }
+
+            var token = tokens[i];
+
+            if (typeof token === 'string' || token.content && typeof token.content === 'string') {
+              var k = keys[j];
+              var t = env.tokenStack[k];
+              var s = typeof token === 'string' ? token : token.content;
+              var placeholder = getPlaceholder(language, k);
+              var index = s.indexOf(placeholder);
+
+              if (index > -1) {
+                ++j;
+                var before = s.substring(0, index);
+                var middle = new Prism.Token(language, Prism.tokenize(t, env.grammar), 'language-' + language, t);
+                var after = s.substring(index + placeholder.length);
+                var replacement = [];
+
+                if (before) {
+                  replacement.push.apply(replacement, walkTokens([before]));
+                }
+
+                replacement.push(middle);
+
+                if (after) {
+                  replacement.push.apply(replacement, walkTokens([after]));
+                }
+
+                if (typeof token === 'string') {
+                  tokens.splice.apply(tokens, [i, 1].concat(replacement));
+                } else {
+                  token.content = replacement;
+                }
+              }
+            } else if (token.content
+            /* && typeof token.content !== 'string' */
+            ) {
+                walkTokens(token.content);
+              }
+          }
+
+          return tokens;
+        }
+
+        walkTokens(env.tokens);
+      }
+    }
+  });
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-php" */
+
+/**
+ * Original by Aaron Harun: http://aahacreative.com/2012/07/31/php-syntax-highlighting-prism/
+ * Modified by Miles Johnson: http://milesj.me
+ *
+ * Supports the following:
+ * 		- Extends clike syntax
+ * 		- Support for PHP 5.3+ (namespaces, traits, generators, etc)
+ * 		- Smarter constant and function matching
+ *
+ * Adds the following new token classes:
+ * 		constant, delimiter, variable, function, package
+ */
+
+
+(function (Prism) {
+  Prism.languages.php = Prism.languages.extend('clike', {
+    'keyword': /\b(?:__halt_compiler|abstract|and|array|as|break|callable|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|eval|exit|extends|final|finally|for|foreach|function|global|goto|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|namespace|new|or|parent|print|private|protected|public|require|require_once|return|static|switch|throw|trait|try|unset|use|var|while|xor|yield)\b/i,
+    'boolean': {
+      pattern: /\b(?:false|true)\b/i,
+      alias: 'constant'
+    },
+    'constant': [/\b[A-Z_][A-Z0-9_]*\b/, /\b(?:null)\b/i],
+    'comment': {
+      pattern: /(^|[^\\])(?:\/\*[\s\S]*?\*\/|\/\/.*)/,
+      lookbehind: true
+    }
+  });
+  Prism.languages.insertBefore('php', 'string', {
+    'shell-comment': {
+      pattern: /(^|[^\\])#.*/,
+      lookbehind: true,
+      alias: 'comment'
+    }
+  });
+  Prism.languages.insertBefore('php', 'comment', {
+    'delimiter': {
+      pattern: /\?>$|^<\?(?:php(?=\s)|=)?/i,
+      alias: 'important'
+    }
+  });
+  Prism.languages.insertBefore('php', 'keyword', {
+    'variable': /\$+(?:\w+\b|(?={))/i,
+    'package': {
+      pattern: /(\\|namespace\s+|use\s+)[\w\\]+/,
+      lookbehind: true,
+      inside: {
+        punctuation: /\\/
+      }
+    }
+  }); // Must be defined after the function pattern
+
+  Prism.languages.insertBefore('php', 'operator', {
+    'property': {
+      pattern: /(->)[\w]+/,
+      lookbehind: true
+    }
+  });
+  var string_interpolation = {
+    pattern: /{\$(?:{(?:{[^{}]+}|[^{}]+)}|[^{}])+}|(^|[^\\{])\$+(?:\w+(?:\[.+?]|->\w+)*)/,
+    lookbehind: true,
+    inside: {
+      rest: Prism.languages.php
+    }
+  };
+  Prism.languages.insertBefore('php', 'string', {
+    'nowdoc-string': {
+      pattern: /<<<'([^']+)'(?:\r\n?|\n)(?:.*(?:\r\n?|\n))*?\1;/,
+      greedy: true,
+      alias: 'string',
+      inside: {
+        'delimiter': {
+          pattern: /^<<<'[^']+'|[a-z_]\w*;$/i,
+          alias: 'symbol',
+          inside: {
+            'punctuation': /^<<<'?|[';]$/
+          }
+        }
+      }
+    },
+    'heredoc-string': {
+      pattern: /<<<(?:"([^"]+)"(?:\r\n?|\n)(?:.*(?:\r\n?|\n))*?\1;|([a-z_]\w*)(?:\r\n?|\n)(?:.*(?:\r\n?|\n))*?\2;)/i,
+      greedy: true,
+      alias: 'string',
+      inside: {
+        'delimiter': {
+          pattern: /^<<<(?:"[^"]+"|[a-z_]\w*)|[a-z_]\w*;$/i,
+          alias: 'symbol',
+          inside: {
+            'punctuation': /^<<<"?|[";]$/
+          }
+        },
+        'interpolation': string_interpolation // See below
+
+      }
+    },
+    'single-quoted-string': {
+      pattern: /'(?:\\[\s\S]|[^\\'])*'/,
+      greedy: true,
+      alias: 'string'
+    },
+    'double-quoted-string': {
+      pattern: /"(?:\\[\s\S]|[^\\"])*"/,
+      greedy: true,
+      alias: 'string',
+      inside: {
+        'interpolation': string_interpolation // See below
+
+      }
+    }
+  }); // The different types of PHP strings "replace" the C-like standard string
+
+  delete Prism.languages.php['string'];
+  Prism.hooks.add('before-tokenize', function (env) {
+    if (!/<\?/.test(env.code)) {
+      return;
+    }
+
+    var phpPattern = /<\?(?:[^"'/#]|\/(?![*/])|("|')(?:\\[\s\S]|(?!\1)[^\\])*\1|(?:\/\/|#)(?:[^?\n\r]|\?(?!>))*|\/\*[\s\S]*?(?:\*\/|$))*?(?:\?>|$)/ig;
+    Prism.languages['markup-templating'].buildPlaceholders(env, 'php', phpPattern);
+  });
+  Prism.hooks.add('after-tokenize', function (env) {
+    Prism.languages['markup-templating'].tokenizePlaceholders(env, 'php');
+  });
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-jsdoc" */
+
+
+(function (Prism) {
+  var javascript = Prism.languages.javascript;
+  var type = /{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})+}/.source;
+  var parameterPrefix = '(@(?:param|arg|argument|property)\\s+(?:' + type + '\\s+)?)';
+  Prism.languages.jsdoc = Prism.languages.extend('javadoclike', {
+    'parameter': {
+      // @param {string} foo - foo bar
+      pattern: RegExp(parameterPrefix + /[$\w\xA0-\uFFFF.]+(?=\s|$)/.source),
+      lookbehind: true,
+      inside: {
+        'punctuation': /\./
+      }
+    }
+  });
+  Prism.languages.insertBefore('jsdoc', 'keyword', {
+    'optional-parameter': {
+      // @param {string} [baz.foo="bar"] foo bar
+      pattern: RegExp(parameterPrefix + /\[[$\w\xA0-\uFFFF.]+(?:=[^[\]]+)?\](?=\s|$)/.source),
+      lookbehind: true,
+      inside: {
+        'parameter': {
+          pattern: /(^\[)[$\w\xA0-\uFFFF\.]+/,
+          lookbehind: true,
+          inside: {
+            'punctuation': /\./
+          }
+        },
+        'code': {
+          pattern: /(=)[\s\S]*(?=\]$)/,
+          lookbehind: true,
+          inside: javascript,
+          alias: 'language-javascript'
+        },
+        'punctuation': /[=[\]]/
+      }
+    },
+    'class-name': [{
+      pattern: RegExp('(@[a-z]+\\s+)' + type),
+      lookbehind: true,
+      inside: {
+        'punctuation': /[.,:?=<>|{}()[\]]/
+      }
+    }, {
+      pattern: /(@(?:augments|extends|class|interface|memberof!?|this)\s+)[A-Z]\w*(?:\.[A-Z]\w*)*/,
+      lookbehind: true,
+      inside: {
+        'punctuation': /\./
+      }
+    }],
+    'example': {
+      pattern: /(@example\s+)[^@]+?(?=\s*(?:\*\s*)?(?:@\w|\*\/))/,
+      lookbehind: true,
+      inside: {
+        'code': {
+          pattern: /^(\s*(?:\*\s*)?).+$/m,
+          lookbehind: true,
+          inside: javascript,
+          alias: 'language-javascript'
+        }
+      }
+    }
+  });
+  Prism.languages.javadoclike.addSupport('javascript', Prism.languages.jsdoc);
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-actionscript" */
+
+
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.actionscript = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('javascript', {
+  'keyword': /\b(?:as|break|case|catch|class|const|default|delete|do|else|extends|finally|for|function|if|implements|import|in|instanceof|interface|internal|is|native|new|null|package|private|protected|public|return|super|switch|this|throw|try|typeof|use|var|void|while|with|dynamic|each|final|get|include|namespace|native|override|set|static)\b/,
+  'operator': /\+\+|--|(?:[+\-*\/%^]|&&?|\|\|?|<<?|>>?>?|[!=]=?)=?|[~?@]/
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.actionscript['class-name'].alias = 'function';
+
+if (_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup) {
+  _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('actionscript', 'string', {
+    'xml': {
+      pattern: /(^|[^.])<\/?\w+(?:\s+[^\s>\/=]+=("|')(?:\\[\s\S]|(?!\2)[^\\])*\2)*\s*\/?>/,
+      lookbehind: true,
+      inside: {
+        rest: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup
+      }
+    }
+  });
+}
 /* "prismjs/components/prism-coffeescript" */
 
 
@@ -2881,45 +3515,151 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.js = _prism_core__W
     'property': /(?!\d)\w+(?=\s*:(?!:))/
   });
   delete Prism.languages.coffeescript['template-string'];
+  Prism.languages.coffee = Prism.languages.coffeescript;
 })(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
-/* "prismjs/components/prism-actionscript" */
+/* "prismjs/components/prism-js-extras" */
 
 
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.actionscript = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('javascript', {
-  'keyword': /\b(?:as|break|case|catch|class|const|default|delete|do|else|extends|finally|for|function|if|implements|import|in|instanceof|interface|internal|is|native|new|null|package|private|protected|public|return|super|switch|this|throw|try|typeof|use|var|void|while|with|dynamic|each|final|get|include|namespace|native|override|set|static)\b/,
-  'operator': /\+\+|--|(?:[+\-*\/%^]|&&?|\|\|?|<<?|>>?>?|[!=]=?)=?|[~?@]/
-});
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.actionscript['class-name'].alias = 'function';
-
-if (_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup) {
-  _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('actionscript', 'string', {
-    'xml': {
-      pattern: /(^|[^.])<\/?\w+(?:\s+[^\s>\/=]+=("|')(?:\\[\s\S]|(?!\2)[^\\])*\2)*\s*\/?>/,
+(function (Prism) {
+  Prism.languages.insertBefore('javascript', 'function-variable', {
+    'method-variable': {
+      pattern: RegExp('(\\.\\s*)' + Prism.languages.javascript['function-variable'].pattern.source),
       lookbehind: true,
-      inside: {
-        rest: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup
-      }
+      alias: ['function-variable', 'method', 'function', 'property-access']
     }
   });
-}
-/* "prismjs/components/prism-css-extras" */
+  Prism.languages.insertBefore('javascript', 'function', {
+    'method': {
+      pattern: RegExp('(\\.\\s*)' + Prism.languages.javascript['function'].source),
+      lookbehind: true,
+      alias: ['function', 'property-access']
+    }
+  });
+  Prism.languages.insertBefore('javascript', 'constant', {
+    'known-class-name': [{
+      // standard built-ins
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
+      pattern: /\b(?:(?:(?:Uint|Int)(?:8|16|32)|Uint8Clamped|Float(?:32|64))?Array|ArrayBuffer|BigInt|Boolean|DataView|Date|Error|Function|Intl|JSON|Math|Number|Object|Promise|Proxy|Reflect|RegExp|String|Symbol|(?:Weak)?(?:Set|Map)|WebAssembly)\b/,
+      alias: 'class-name'
+    }, {
+      // errors
+      pattern: /\b(?:[A-Z]\w*)Error\b/,
+      alias: 'class-name'
+    }]
+  });
+  Prism.languages.javascript['keyword'].unshift({
+    pattern: /\b(?:as|default|export|from|import)\b/,
+    alias: 'module'
+  }, {
+    pattern: /\bnull\b/,
+    alias: ['null', 'nil']
+  }, {
+    pattern: /\bundefined\b/,
+    alias: 'nil'
+  });
+  Prism.languages.insertBefore('javascript', 'operator', {
+    'spread': {
+      pattern: /\.{3}/,
+      alias: 'operator'
+    },
+    'arrow': {
+      pattern: /=>/,
+      alias: 'operator'
+    }
+  });
+  Prism.languages.insertBefore('javascript', 'punctuation', {
+    'property-access': {
+      pattern: /(\.\s*)[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*/,
+      lookbehind: true
+    },
+    'maybe-class-name': {
+      pattern: /(^|[^$\w\xA0-\uFFFF])[A-Z][$\w\xA0-\uFFFF]+/,
+      lookbehind: true
+    },
+    'dom': {
+      // this contains only a few commonly used DOM variables
+      pattern: /\b(?:document|location|navigator|performance|(?:local|session)Storage|window)\b/,
+      alias: 'variable'
+    },
+    'console': {
+      pattern: /\bconsole(?=\s*\.)/,
+      alias: 'class-name'
+    }
+  }); // add 'maybe-class-name' to tokens which might be a class name
+
+  var maybeClassNameTokens = ['function', 'function-variable', 'method', 'method-variable', 'property-access'];
+
+  for (var i = 0; i < maybeClassNameTokens.length; i++) {
+    var token = maybeClassNameTokens[i];
+    var value = Prism.languages.javascript[token]; // convert regex to object
+
+    if (Prism.util.type(value) === 'RegExp') {
+      value = Prism.languages.javascript[token] = {
+        pattern: value
+      };
+    } // keep in mind that we don't support arrays
 
 
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.css.selector = {
-  pattern: /[^{}\s][^{}]*(?=\s*\{)/,
-  inside: {
-    'pseudo-element': /:(?:after|before|first-letter|first-line|selection)|::[-\w]+/,
-    'pseudo-class': /:[-\w]+(?:\(.*\))?/,
-    'class': /\.[-:.\w]+/,
-    'id': /#[-:.\w]+/,
-    'attribute': /\[[^\]]+\]/
+    var inside = value.inside || {};
+    value.inside = inside;
+    inside['maybe-class-name'] = /^[A-Z][\s\S]*/;
   }
-};
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('css', 'function', {
-  'hexcode': /#[\da-f]{3,8}/i,
-  'entity': /\\[\da-f]{1,8}/i,
-  'number': /[\d%.]+/
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-flow" */
+
+
+(function (Prism) {
+  Prism.languages.flow = Prism.languages.extend('javascript', {});
+  Prism.languages.insertBefore('flow', 'keyword', {
+    'type': [{
+      pattern: /\b(?:[Nn]umber|[Ss]tring|[Bb]oolean|Function|any|mixed|null|void)\b/,
+      alias: 'tag'
+    }]
+  });
+  Prism.languages.flow['function-variable'].pattern = /[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*=\s*(?:function\b|(?:\([^()]*\)(?:\s*:\s*\w+)?|[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)\s*=>))/i;
+  delete Prism.languages.flow['parameter'];
+  Prism.languages.insertBefore('flow', 'operator', {
+    'flow-punctuation': {
+      pattern: /\{\||\|\}/,
+      alias: 'punctuation'
+    }
+  });
+
+  if (!Array.isArray(Prism.languages.flow.keyword)) {
+    Prism.languages.flow.keyword = [Prism.languages.flow.keyword];
+  }
+
+  Prism.languages.flow.keyword.unshift({
+    pattern: /(^|[^$]\b)(?:type|opaque|declare|Class)\b(?!\$)/,
+    lookbehind: true
+  }, {
+    pattern: /(^|[^$]\B)\$(?:await|Diff|Exact|Keys|ObjMap|PropertyType|Shape|Record|Supertype|Subtype|Enum)\b(?!\$)/,
+    lookbehind: true
+  });
+})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
+/* "prismjs/components/prism-n4js" */
+
+
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.n4js = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('javascript', {
+  // Keywords from N4JS language spec: https://numberfour.github.io/n4js/spec/N4JSSpec.html
+  'keyword': /\b(?:any|Array|boolean|break|case|catch|class|const|constructor|continue|debugger|declare|default|delete|do|else|enum|export|extends|false|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|module|new|null|number|package|private|protected|public|return|set|static|string|super|switch|this|throw|true|try|typeof|var|void|while|with|yield)\b/
 });
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('n4js', 'constant', {
+  // Annotations in N4JS spec: https://numberfour.github.io/n4js/spec/N4JSSpec.html#_annotations
+  'annotation': {
+    pattern: /@+\w+/,
+    alias: 'operator'
+  }
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.n4jsd = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.n4js;
+/* "prismjs/components/prism-typescript" */
+
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.typescript = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('javascript', {
+  // From JavaScript Prism keyword list and TypeScript language spec: https://github.com/Microsoft/TypeScript/blob/master/doc/spec.md#221-reserved-words
+  'keyword': /\b(?:abstract|as|async|await|break|case|catch|class|const|constructor|continue|debugger|declare|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|is|keyof|let|module|namespace|new|null|of|package|private|protected|public|readonly|return|require|set|static|super|switch|this|throw|try|type|typeof|var|void|while|with|yield)\b/,
+  'builtin': /\b(?:string|Function|any|number|boolean|Array|symbol|console|Promise|unknown|never)\b/
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.ts = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.typescript;
 /* "prismjs/components/prism-diff" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.diff = {
@@ -2935,134 +3675,6 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.diff = {
     'pattern': /^!(?!!).+$/m,
     'alias': 'important'
   }
-};
-/* "prismjs/components/prism-docker" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.docker = {
-  'keyword': {
-    pattern: /(^\s*)(?:ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|ONBUILD|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)(?=\s)/mi,
-    lookbehind: true
-  },
-  'string': /("|')(?:(?!\1)[^\\\r\n]|\\(?:\r\n|[\s\S]))*\1/,
-  'comment': /#.*/,
-  'punctuation': /---|\.\.\.|[:[\]{}\-,|>?]/
-};
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.dockerfile = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.docker;
-/* "prismjs/components/prism-elixir" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.elixir = {
-  'comment': {
-    pattern: /#.*/m,
-    lookbehind: true
-  },
-  // ~r"""foo""" (multi-line), ~r'''foo''' (multi-line), ~r/foo/, ~r|foo|, ~r"foo", ~r'foo', ~r(foo), ~r[foo], ~r{foo}, ~r<foo>
-  'regex': {
-    pattern: /~[rR](?:("""|''')(?:\\[\s\S]|(?!\1)[^\\])+\1|([\/|"'])(?:\\.|(?!\2)[^\\\r\n])+\2|\((?:\\.|[^\\)\r\n])+\)|\[(?:\\.|[^\\\]\r\n])+\]|\{(?:\\.|[^\\}\r\n])+\}|<(?:\\.|[^\\>\r\n])+>)[uismxfr]*/,
-    greedy: true
-  },
-  'string': [{
-    // ~s"""foo""" (multi-line), ~s'''foo''' (multi-line), ~s/foo/, ~s|foo|, ~s"foo", ~s'foo', ~s(foo), ~s[foo], ~s{foo} (with interpolation care), ~s<foo>
-    pattern: /~[cCsSwW](?:("""|''')(?:\\[\s\S]|(?!\1)[^\\])+\1|([\/|"'])(?:\\.|(?!\2)[^\\\r\n])+\2|\((?:\\.|[^\\)\r\n])+\)|\[(?:\\.|[^\\\]\r\n])+\]|\{(?:\\.|#\{[^}]+\}|[^\\}\r\n])+\}|<(?:\\.|[^\\>\r\n])+>)[csa]?/,
-    greedy: true,
-    inside: {}
-  }, {
-    pattern: /("""|''')[\s\S]*?\1/,
-    greedy: true,
-    inside: {}
-  }, {
-    // Multi-line strings are allowed
-    pattern: /("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
-    greedy: true,
-    inside: {}
-  }],
-  'atom': {
-    // Look-behind prevents bad highlighting of the :: operator
-    pattern: /(^|[^:]):\w+/,
-    lookbehind: true,
-    alias: 'symbol'
-  },
-  // Look-ahead prevents bad highlighting of the :: operator
-  'attr-name': /\w+:(?!:)/,
-  'capture': {
-    // Look-behind prevents bad highlighting of the && operator
-    pattern: /(^|[^&])&(?:[^&\s\d()][^\s()]*|(?=\())/,
-    lookbehind: true,
-    alias: 'function'
-  },
-  'argument': {
-    // Look-behind prevents bad highlighting of the && operator
-    pattern: /(^|[^&])&\d+/,
-    lookbehind: true,
-    alias: 'variable'
-  },
-  'attribute': {
-    pattern: /@\w+/,
-    alias: 'variable'
-  },
-  'number': /\b(?:0[box][a-f\d_]+|\d[\d_]*)(?:\.[\d_]+)?(?:e[+-]?[\d_]+)?\b/i,
-  'keyword': /\b(?:after|alias|and|case|catch|cond|def(?:callback|exception|impl|module|p|protocol|struct)?|do|else|end|fn|for|if|import|not|or|require|rescue|try|unless|use|when)\b/,
-  'boolean': /\b(?:true|false|nil)\b/,
-  'operator': [/\bin\b|&&?|\|[|>]?|\\\\|::|\.\.\.?|\+\+?|-[->]?|<[-=>]|>=|!==?|\B!|=(?:==?|[>~])?|[*\/^]/, {
-    // We don't want to match <<
-    pattern: /([^<])<(?!<)/,
-    lookbehind: true
-  }, {
-    // We don't want to match >>
-    pattern: /([^>])>(?!>)/,
-    lookbehind: true
-  }],
-  'punctuation': /<<|>>|[.,%\[\]{}()]/
-};
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.elixir.string.forEach(function (o) {
-  o.inside = {
-    'interpolation': {
-      pattern: /#\{[^}]+\}/,
-      inside: {
-        'delimiter': {
-          pattern: /^#\{|\}$/,
-          alias: 'punctuation'
-        },
-        rest: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.elixir
-      }
-    }
-  };
-});
-/* "prismjs/components/prism-erlang" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.erlang = {
-  'comment': /%.+/,
-  'string': {
-    pattern: /"(?:\\.|[^\\"\r\n])*"/,
-    greedy: true
-  },
-  'quoted-function': {
-    pattern: /'(?:\\.|[^\\'\r\n])+'(?=\()/,
-    alias: 'function'
-  },
-  'quoted-atom': {
-    pattern: /'(?:\\.|[^\\'\r\n])+'/,
-    alias: 'atom'
-  },
-  'boolean': /\b(?:true|false)\b/,
-  'keyword': /\b(?:fun|when|case|of|end|if|receive|after|try|catch)\b/,
-  'number': [/\$\\?./, /\d+#[a-z0-9]+/i, /(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i],
-  'function': /\b[a-z][\w@]*(?=\()/,
-  'variable': {
-    // Look-behind is used to prevent wrong highlighting of atoms containing "@"
-    pattern: /(^|[^@])(?:\b|\?)[A-Z_][\w@]*/,
-    lookbehind: true
-  },
-  'operator': [/[=\/<>:]=|=[:\/]=|\+\+?|--?|[=*\/!]|\b(?:bnot|div|rem|band|bor|bxor|bsl|bsr|not|and|or|xor|orelse|andalso)\b/, {
-    // We don't want to match <<
-    pattern: /(^|[^<])<(?!<)/,
-    lookbehind: true
-  }, {
-    // We don't want to match >>
-    pattern: /(^|[^>])>(?!>)/,
-    lookbehind: true
-  }],
-  'atom': /\b[a-z][\w@]*/,
-  'punctuation': /[()[\]{}:;,.#|]|<<|>>/
 };
 /* "prismjs/components/prism-git" */
 
@@ -3163,109 +3775,24 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.graphql = {
     pattern: /@[a-z_]\w*/i,
     alias: 'function'
   },
-  'attr-name': /[a-z_]\w*(?=\s*:)/i,
-  'keyword': [{
-    pattern: /(fragment\s+(?!on)[a-z_]\w*\s+|\.{3}\s*)on\b/,
-    lookbehind: true
-  }, /\b(?:query|fragment|mutation)\b/],
-  'operator': /!|=|\.{3}/,
-  'punctuation': /[!(){}\[\]:=,]/
-};
-/* "prismjs/components/prism-markup-templating" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages['markup-templating'] = {};
-Object.defineProperties(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages['markup-templating'], {
-  buildPlaceholders: {
-    // Tokenize all inline templating expressions matching placeholderPattern
-    // If the replaceFilter function is provided, it will be called with every match.
-    // If it returns false, the match will not be replaced.
-    value: function value(env, language, placeholderPattern, replaceFilter) {
-      if (env.language !== language) {
-        return;
-      }
-
-      env.tokenStack = [];
-      env.code = env.code.replace(placeholderPattern, function (match) {
-        if (typeof replaceFilter === 'function' && !replaceFilter(match)) {
-          return match;
-        }
-
-        var i = env.tokenStack.length; // Check for existing strings
-
-        while (env.code.indexOf('___' + language.toUpperCase() + i + '___') !== -1) {
-          ++i;
-        } // Create a sparse array
-
-
-        env.tokenStack[i] = match;
-        return '___' + language.toUpperCase() + i + '___';
-      }); // Switch the grammar to markup
-
-      env.grammar = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markup;
-    }
+  'attr-name': {
+    pattern: /[a-z_]\w*(?=\s*(?:\((?:[^()"]|"(?:\\.|[^\\"\r\n])*")*\))?:)/i,
+    greedy: true
   },
-  tokenizePlaceholders: {
-    // Replace placeholders with proper tokens after tokenizing
-    value: function value(env, language) {
-      if (env.language !== language || !env.tokenStack) {
-        return;
-      } // Switch the grammar back
-
-
-      env.grammar = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages[language];
-      var j = 0;
-      var keys = Object.keys(env.tokenStack);
-
-      var walkTokens = function walkTokens(tokens) {
-        if (j >= keys.length) {
-          return;
-        }
-
-        for (var i = 0; i < tokens.length; i++) {
-          var token = tokens[i];
-
-          if (typeof token === 'string' || token.content && typeof token.content === 'string') {
-            var k = keys[j];
-            var t = env.tokenStack[k];
-            var s = typeof token === 'string' ? token : token.content;
-            var index = s.indexOf('___' + language.toUpperCase() + k + '___');
-
-            if (index > -1) {
-              ++j;
-              var before = s.substring(0, index);
-              var middle = new _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.Token(language, _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.tokenize(t, env.grammar, language), 'language-' + language, t);
-              var after = s.substring(index + ('___' + language.toUpperCase() + k + '___').length);
-              var replacement;
-
-              if (before || after) {
-                replacement = [before, middle, after].filter(function (v) {
-                  return !!v;
-                });
-                walkTokens(replacement);
-              } else {
-                replacement = middle;
-              }
-
-              if (typeof token === 'string') {
-                Array.prototype.splice.apply(tokens, [i, 1].concat(replacement));
-              } else {
-                token.content = replacement;
-              }
-
-              if (j >= keys.length) {
-                break;
-              }
-            }
-          } else if (token.content && typeof token.content !== 'string') {
-            walkTokens(token.content);
-          }
-        }
-      };
-
-      walkTokens(env.tokens);
-    }
-  }
-});
+  'class-name': {
+    pattern: /(\b(?:enum|implements|interface|on|scalar|type|union)\s+)[a-zA-Z_]\w*/,
+    lookbehind: true
+  },
+  'fragment': {
+    pattern: /(\bfragment\s+|\.{3}\s*(?!on\b))[a-zA-Z_]\w*/,
+    lookbehind: true,
+    alias: 'function'
+  },
+  'keyword': /\b(?:enum|fragment|implements|input|interface|mutation|on|query|scalar|schema|type|union)\b/,
+  'operator': /[!=|]|\.{3}/,
+  'punctuation': /[!(){}\[\]:=,]/,
+  'constant': /\b(?!ID\b)[A-Z][A-Z_\d]*\b/
+};
 /* "prismjs/components/prism-handlebars" */
 
 (function (Prism) {
@@ -3301,149 +3828,28 @@ Object.defineProperties(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.langu
     Prism.languages['markup-templating'].tokenizePlaceholders(env, 'handlebars');
   });
 })(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
-/* "prismjs/components/prism-haskell" */
-
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.haskell = {
-  'comment': {
-    pattern: /(^|[^-!#$%*+=?&@|~.:<>^\\\/])(?:--[^-!#$%*+=?&@|~.:<>^\\\/].*|{-[\s\S]*?-})/m,
-    lookbehind: true
-  },
-  'char': /'(?:[^\\']|\\(?:[abfnrtv\\"'&]|\^[A-Z@[\]^_]|NUL|SOH|STX|ETX|EOT|ENQ|ACK|BEL|BS|HT|LF|VT|FF|CR|SO|SI|DLE|DC1|DC2|DC3|DC4|NAK|SYN|ETB|CAN|EM|SUB|ESC|FS|GS|RS|US|SP|DEL|\d+|o[0-7]+|x[0-9a-fA-F]+))'/,
-  'string': {
-    pattern: /"(?:[^\\"]|\\(?:[abfnrtv\\"'&]|\^[A-Z@[\]^_]|NUL|SOH|STX|ETX|EOT|ENQ|ACK|BEL|BS|HT|LF|VT|FF|CR|SO|SI|DLE|DC1|DC2|DC3|DC4|NAK|SYN|ETB|CAN|EM|SUB|ESC|FS|GS|RS|US|SP|DEL|\d+|o[0-7]+|x[0-9a-fA-F]+)|\\\s+\\)*"/,
-    greedy: true
-  },
-  'keyword': /\b(?:case|class|data|deriving|do|else|if|in|infixl|infixr|instance|let|module|newtype|of|primitive|then|type|where)\b/,
-  'import_statement': {
-    // The imported or hidden names are not included in this import
-    // statement. This is because we want to highlight those exactly like
-    // we do for the names in the program.
-    pattern: /((?:\r?\n|\r|^)\s*)import\s+(?:qualified\s+)?(?:[A-Z][\w']*)(?:\.[A-Z][\w']*)*(?:\s+as\s+(?:[A-Z][_a-zA-Z0-9']*)(?:\.[A-Z][\w']*)*)?(?:\s+hiding\b)?/m,
-    lookbehind: true,
-    inside: {
-      'keyword': /\b(?:import|qualified|as|hiding)\b/
-    }
-  },
-  // These are builtin variables only. Constructors are highlighted later as a constant.
-  'builtin': /\b(?:abs|acos|acosh|all|and|any|appendFile|approxRational|asTypeOf|asin|asinh|atan|atan2|atanh|basicIORun|break|catch|ceiling|chr|compare|concat|concatMap|const|cos|cosh|curry|cycle|decodeFloat|denominator|digitToInt|div|divMod|drop|dropWhile|either|elem|encodeFloat|enumFrom|enumFromThen|enumFromThenTo|enumFromTo|error|even|exp|exponent|fail|filter|flip|floatDigits|floatRadix|floatRange|floor|fmap|foldl|foldl1|foldr|foldr1|fromDouble|fromEnum|fromInt|fromInteger|fromIntegral|fromRational|fst|gcd|getChar|getContents|getLine|group|head|id|inRange|index|init|intToDigit|interact|ioError|isAlpha|isAlphaNum|isAscii|isControl|isDenormalized|isDigit|isHexDigit|isIEEE|isInfinite|isLower|isNaN|isNegativeZero|isOctDigit|isPrint|isSpace|isUpper|iterate|last|lcm|length|lex|lexDigits|lexLitChar|lines|log|logBase|lookup|map|mapM|mapM_|max|maxBound|maximum|maybe|min|minBound|minimum|mod|negate|not|notElem|null|numerator|odd|or|ord|otherwise|pack|pi|pred|primExitWith|print|product|properFraction|putChar|putStr|putStrLn|quot|quotRem|range|rangeSize|read|readDec|readFile|readFloat|readHex|readIO|readInt|readList|readLitChar|readLn|readOct|readParen|readSigned|reads|readsPrec|realToFrac|recip|rem|repeat|replicate|return|reverse|round|scaleFloat|scanl|scanl1|scanr|scanr1|seq|sequence|sequence_|show|showChar|showInt|showList|showLitChar|showParen|showSigned|showString|shows|showsPrec|significand|signum|sin|sinh|snd|sort|span|splitAt|sqrt|subtract|succ|sum|tail|take|takeWhile|tan|tanh|threadToIOResult|toEnum|toInt|toInteger|toLower|toRational|toUpper|truncate|uncurry|undefined|unlines|until|unwords|unzip|unzip3|userError|words|writeFile|zip|zip3|zipWith|zipWith3)\b/,
-  // decimal integers and floating point numbers | octal integers | hexadecimal integers
-  'number': /\b(?:\d+(?:\.\d+)?(?:e[+-]?\d+)?|0o[0-7]+|0x[0-9a-f]+)\b/i,
-  // Most of this is needed because of the meaning of a single '.'.
-  // If it stands alone freely, it is the function composition.
-  // It may also be a separator between a module name and an identifier => no
-  // operator. If it comes together with other special characters it is an
-  // operator too.
-  'operator': /\s\.\s|[-!#$%*+=?&@|~.:<>^\\\/]*\.[-!#$%*+=?&@|~.:<>^\\\/]+|[-!#$%*+=?&@|~.:<>^\\\/]+\.[-!#$%*+=?&@|~.:<>^\\\/]*|[-!#$%*+=?&@|~:<>^\\\/]+|`([A-Z][\w']*\.)*[_a-z][\w']*`/,
-  // In Haskell, nearly everything is a variable, do not highlight these.
-  'hvariable': /\b(?:[A-Z][\w']*\.)*[_a-z][\w']*\b/,
-  'constant': /\b(?:[A-Z][\w']*\.)*[A-Z][\w']*\b/,
-  'punctuation': /[{}[\];(),.:]/
-};
-/* "prismjs/components/prism-java" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.java = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('clike', {
-  'keyword': /\b(?:abstract|continue|for|new|switch|assert|default|goto|package|synchronized|boolean|do|if|private|this|break|double|implements|protected|throw|byte|else|import|public|throws|case|enum|instanceof|return|transient|catch|extends|int|short|try|char|final|interface|static|void|class|finally|long|strictfp|volatile|const|float|native|super|while)\b/,
-  'number': /\b0b[01]+\b|\b0x[\da-f]*\.?[\da-fp-]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?[df]?/i,
-  'operator': {
-    pattern: /(^|[^.])(?:\+[+=]?|-[-=]?|!=?|<<?=?|>>?>?=?|==?|&[&=]?|\|[|=]?|\*=?|\/=?|%=?|\^=?|[?:~])/m,
-    lookbehind: true
-  }
-});
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('java', 'function', {
-  'annotation': {
-    alias: 'punctuation',
-    pattern: /(^|[^.])@\w+/,
-    lookbehind: true
-  }
-});
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('java', 'class-name', {
-  'generics': {
-    pattern: /<\s*\w+(?:\.\w+)?(?:\s*,\s*\w+(?:\.\w+)?)*>/i,
-    alias: 'function',
-    inside: {
-      keyword: _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.java.keyword,
-      punctuation: /[<>(),.:]/
-    }
-  }
-});
 /* "prismjs/components/prism-json" */
 
+
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.json = {
-  'property': /"(?:\\.|[^\\"\r\n])*"(?=\s*:)/i,
+  'comment': /\/\/.*|\/\*[\s\S]*?(?:\*\/|$)/,
+  'property': {
+    pattern: /"(?:\\.|[^\\"\r\n])*"(?=\s*:)/,
+    greedy: true
+  },
   'string': {
     pattern: /"(?:\\.|[^\\"\r\n])*"(?!\s*:)/,
     greedy: true
   },
-  'number': /\b0x[\dA-Fa-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:[Ee][+-]?\d+)?/,
-  'punctuation': /[{}[\]);,]/,
-  'operator': /:/g,
-  'boolean': /\b(?:true|false)\b/i,
-  'null': /\bnull\b/i
+  'number': /-?\d+\.?\d*(e[+-]?\d+)?/i,
+  'punctuation': /[{}[\],]/,
+  'operator': /:/,
+  'boolean': /\b(?:true|false)\b/,
+  'null': {
+    pattern: /\bnull\b/,
+    alias: 'keyword'
+  }
 };
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.jsonp = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.json;
-/* "prismjs/components/prism-latex" */
-
-(function (Prism) {
-  var funcPattern = /\\(?:[^a-z()[\]]|[a-z*]+)/i,
-      insideEqu = {
-    'equation-command': {
-      pattern: funcPattern,
-      alias: 'regex'
-    }
-  };
-  Prism.languages.latex = {
-    'comment': /%.*/m,
-    // the verbatim environment prints whitespace to the document
-    'cdata': {
-      pattern: /(\\begin\{((?:verbatim|lstlisting)\*?)\})[\s\S]*?(?=\\end\{\2\})/,
-      lookbehind: true
-    },
-
-    /*
-     * equations can be between $ $ or \( \) or \[ \]
-     * (all are multiline)
-     */
-    'equation': [{
-      pattern: /\$(?:\\[\s\S]|[^\\$])*\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]/,
-      inside: insideEqu,
-      alias: 'string'
-    }, {
-      pattern: /(\\begin\{((?:equation|math|eqnarray|align|multline|gather)\*?)\})[\s\S]*?(?=\\end\{\2\})/,
-      lookbehind: true,
-      inside: insideEqu,
-      alias: 'string'
-    }],
-
-    /*
-     * arguments which are keywords or references are highlighted
-     * as keywords
-     */
-    'keyword': {
-      pattern: /(\\(?:begin|end|ref|cite|label|usepackage|documentclass)(?:\[[^\]]+\])?\{)[^}]+(?=\})/,
-      lookbehind: true
-    },
-    'url': {
-      pattern: /(\\url\{)[^}]+(?=\})/,
-      lookbehind: true
-    },
-
-    /*
-     * section or chapter headlines are highlighted as bold so that
-     * they stand out more
-     */
-    'headline': {
-      pattern: /(\\(?:part|chapter|section|subsection|frametitle|subsubsection|paragraph|subparagraph|subsubparagraph|subsubsubparagraph)\*?(?:\[[^\]]+\])?\{)[^}]+(?=\}(?:\[[^\]]+\])?)/,
-      lookbehind: true,
-      alias: 'class-name'
-    },
-    'function': {
-      pattern: funcPattern,
-      alias: 'selector'
-    },
-    'punctuation': /[[\]{}&]/
-  };
-})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
 /* "prismjs/components/prism-less" */
 
 /* FIXME :
@@ -3453,7 +3859,6 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.jsonp = _prism_core
  Detached rulesets are highlighted as at-rules.
  A comment before a mixin usage prevents the latter to be properly highlighted.
  */
-
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.less = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('css', {
   'comment': [/\/\*[\s\S]*?\*\//, {
@@ -3475,12 +3880,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.less = _prism_core_
     }
   },
   'property': /(?:@\{[\w-]+\}|[\w-])+(?:\+_?)?(?=\s*:)/i,
-  'punctuation': /[{}();:,]/,
   'operator': /[+\-*\/]/
-}); // Invert function and punctuation positions
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('less', 'punctuation', {
-  'function': _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.less.function
 });
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('less', 'property', {
   'variable': [// Variable declaration (the colon must be consumed!)
@@ -3545,13 +3945,30 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markd
     // ``code``
     pattern: /``.+?``|`[^`\n]+`/,
     alias: 'keyword'
+  }, {
+    // ```optional language
+    // code block
+    // ```
+    pattern: /^```[\s\S]*?^```$/m,
+    greedy: true,
+    inside: {
+      'code-block': {
+        pattern: /^(```.*(?:\r?\n|\r))[\s\S]+?(?=(?:\r?\n|\r)^```$)/m,
+        lookbehind: true
+      },
+      'code-language': {
+        pattern: /^(```).+/,
+        lookbehind: true
+      },
+      'punctuation': /```/
+    }
   }],
   'title': [{
     // title 1
     // =======
     // title 2
     // -------
-    pattern: /\w+.*(?:\r?\n|\r)(?:==+|--+)/,
+    pattern: /\S.*(?:\r?\n|\r)(?:==+|--+)/,
     alias: 'important',
     inside: {
       punctuation: /==+$|--+$/
@@ -3606,6 +4023,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markd
     // Allow only one line break
     pattern: /(^|[^\\])(\*\*|__)(?:(?:\r?\n|\r)(?!\r?\n|\r)|.)+?\2/,
     lookbehind: true,
+    greedy: true,
     inside: {
       'punctuation': /^\*\*|^__|\*\*$|__$/
     }
@@ -3616,8 +4034,20 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markd
     // Allow only one line break
     pattern: /(^|[^\\])([*_])(?:(?:\r?\n|\r)(?!\r?\n|\r)|.)+?\2/,
     lookbehind: true,
+    greedy: true,
     inside: {
       'punctuation': /^[*_]|[*_]$/
+    }
+  },
+  'strike': {
+    // ~~strike through~~
+    // ~strike~
+    // Allow only one line break
+    pattern: /(^|[^\\])(~~?)(?:(?:\r?\n|\r)(?!\r?\n|\r)|.)+?\2/,
+    lookbehind: true,
+    greedy: true,
+    inside: {
+      'punctuation': /^~~?|~~?$/
     }
   },
   'url': {
@@ -3635,10 +4065,79 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('markd
     }
   }
 });
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['bold'].inside['url'] = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['url'];
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['italic'].inside['url'] = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['url'];
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['bold'].inside['italic'] = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['italic'];
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['italic'].inside['bold'] = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown['bold'];
+['bold', 'italic', 'strike'].forEach(function (token) {
+  ['url', 'bold', 'italic', 'strike'].forEach(function (inside) {
+    if (token !== inside) {
+      _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown[token].inside[inside] = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown[inside];
+    }
+  });
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.hooks.add('after-tokenize', function (env) {
+  if (env.language !== 'markdown' && env.language !== 'md') {
+    return;
+  }
+
+  function walkTokens(tokens) {
+    if (!tokens || typeof tokens === 'string') {
+      return;
+    }
+
+    for (var i = 0, l = tokens.length; i < l; i++) {
+      var token = tokens[i];
+
+      if (token.type !== 'code') {
+        walkTokens(token.content);
+        continue;
+      }
+
+      var codeLang = token.content[1];
+      var codeBlock = token.content[3];
+
+      if (codeLang && codeBlock && codeLang.type === 'code-language' && codeBlock.type === 'code-block' && typeof codeLang.content === 'string') {
+        // this might be a language that Prism does not support
+        var alias = 'language-' + codeLang.content.trim().split(/\s+/)[0].toLowerCase(); // add alias
+
+        if (!codeBlock.alias) {
+          codeBlock.alias = [alias];
+        } else if (typeof codeBlock.alias === 'string') {
+          codeBlock.alias = [codeBlock.alias, alias];
+        } else {
+          codeBlock.alias.push(alias);
+        }
+      }
+    }
+  }
+
+  walkTokens(env.tokens);
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.hooks.add('wrap', function (env) {
+  if (env.type !== 'code-block') {
+    return;
+  }
+
+  var codeLang = '';
+
+  for (var i = 0, l = env.classes.length; i < l; i++) {
+    var cls = env.classes[i];
+    var match = /language-(.+)/.exec(cls);
+
+    if (match) {
+      codeLang = match[1];
+      break;
+    }
+  }
+
+  var grammar = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages[codeLang];
+
+  if (!grammar) {
+    return;
+  } // reverse Prism.util.encode
+
+
+  var code = env.content.replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+  env.content = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.highlight(code, grammar, codeLang);
+});
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.md = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.markdown;
 /* "prismjs/components/prism-objectivec" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.objectivec = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('c', {
@@ -3646,6 +4145,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.objectivec = _prism
   'string': /("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1|@"(?:\\(?:\r\n|[\s\S])|[^"\\\r\n])*"/,
   'operator': /-[->]?|\+\+?|!=?|<<?=?|>>?=?|==?|&&?|\|\|?|[~^%?*\/@]/
 });
+delete _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.objectivec['class-name'];
 /* "prismjs/components/prism-ocaml" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.ocaml = {
@@ -3672,141 +4172,6 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.ocaml = {
   'operator': /:=|[=<>@^|&+\-*\/$%!?~][!$%&*+\-.\/:<=>?@^|~]*|\b(?:and|asr|land|lor|lxor|lsl|lsr|mod|nor|or)\b/,
   'punctuation': /[(){}\[\]|_.,:;]/
 };
-/* "prismjs/components/prism-php" */
-
-/**
- * Original by Aaron Harun: http://aahacreative.com/2012/07/31/php-syntax-highlighting-prism/
- * Modified by Miles Johnson: http://milesj.me
- *
- * Supports the following:
- * 		- Extends clike syntax
- * 		- Support for PHP 5.3+ (namespaces, traits, generators, etc)
- * 		- Smarter constant and function matching
- *
- * Adds the following new token classes:
- * 		constant, delimiter, variable, function, package
- */
-
-(function (Prism) {
-  Prism.languages.php = Prism.languages.extend('clike', {
-    'keyword': /\b(?:and|or|xor|array|as|break|case|cfunction|class|const|continue|declare|default|die|do|else|elseif|enddeclare|endfor|endforeach|endif|endswitch|endwhile|extends|for|foreach|function|include|include_once|global|if|new|return|static|switch|use|require|require_once|var|while|abstract|interface|public|implements|private|protected|parent|throw|null|echo|print|trait|namespace|final|yield|goto|instanceof|finally|try|catch)\b/i,
-    'constant': /\b[A-Z0-9_]{2,}\b/,
-    'comment': {
-      pattern: /(^|[^\\])(?:\/\*[\s\S]*?\*\/|\/\/.*)/,
-      lookbehind: true
-    }
-  });
-  Prism.languages.insertBefore('php', 'string', {
-    'shell-comment': {
-      pattern: /(^|[^\\])#.*/,
-      lookbehind: true,
-      alias: 'comment'
-    }
-  });
-  Prism.languages.insertBefore('php', 'keyword', {
-    'delimiter': {
-      pattern: /\?>|<\?(?:php|=)?/i,
-      alias: 'important'
-    },
-    'variable': /\$+(?:\w+\b|(?={))/i,
-    'package': {
-      pattern: /(\\|namespace\s+|use\s+)[\w\\]+/,
-      lookbehind: true,
-      inside: {
-        punctuation: /\\/
-      }
-    }
-  }); // Must be defined after the function pattern
-
-  Prism.languages.insertBefore('php', 'operator', {
-    'property': {
-      pattern: /(->)[\w]+/,
-      lookbehind: true
-    }
-  });
-  Prism.languages.insertBefore('php', 'string', {
-    'nowdoc-string': {
-      pattern: /<<<'([^']+)'(?:\r\n?|\n)(?:.*(?:\r\n?|\n))*?\1;/,
-      greedy: true,
-      alias: 'string',
-      inside: {
-        'delimiter': {
-          pattern: /^<<<'[^']+'|[a-z_]\w*;$/i,
-          alias: 'symbol',
-          inside: {
-            'punctuation': /^<<<'?|[';]$/
-          }
-        }
-      }
-    },
-    'heredoc-string': {
-      pattern: /<<<(?:"([^"]+)"(?:\r\n?|\n)(?:.*(?:\r\n?|\n))*?\1;|([a-z_]\w*)(?:\r\n?|\n)(?:.*(?:\r\n?|\n))*?\2;)/i,
-      greedy: true,
-      alias: 'string',
-      inside: {
-        'delimiter': {
-          pattern: /^<<<(?:"[^"]+"|[a-z_]\w*)|[a-z_]\w*;$/i,
-          alias: 'symbol',
-          inside: {
-            'punctuation': /^<<<"?|[";]$/
-          }
-        },
-        'interpolation': null // See below
-
-      }
-    },
-    'single-quoted-string': {
-      pattern: /'(?:\\[\s\S]|[^\\'])*'/,
-      greedy: true,
-      alias: 'string'
-    },
-    'double-quoted-string': {
-      pattern: /"(?:\\[\s\S]|[^\\"])*"/,
-      greedy: true,
-      alias: 'string',
-      inside: {
-        'interpolation': null // See below
-
-      }
-    }
-  }); // The different types of PHP strings "replace" the C-like standard string
-
-  delete Prism.languages.php['string'];
-  var string_interpolation = {
-    pattern: /{\$(?:{(?:{[^{}]+}|[^{}]+)}|[^{}])+}|(^|[^\\{])\$+(?:\w+(?:\[.+?]|->\w+)*)/,
-    lookbehind: true,
-    inside: {
-      rest: Prism.languages.php
-    }
-  };
-  Prism.languages.php['heredoc-string'].inside['interpolation'] = string_interpolation;
-  Prism.languages.php['double-quoted-string'].inside['interpolation'] = string_interpolation;
-  Prism.hooks.add('before-tokenize', function (env) {
-    if (!/(?:<\?php|<\?)/ig.test(env.code)) {
-      return;
-    }
-
-    var phpPattern = /(?:<\?php|<\?)[\s\S]*?(?:\?>|$)/ig;
-    Prism.languages['markup-templating'].buildPlaceholders(env, 'php', phpPattern);
-  });
-  Prism.hooks.add('after-tokenize', function (env) {
-    Prism.languages['markup-templating'].tokenizePlaceholders(env, 'php');
-  });
-})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
-/* "prismjs/components/prism-php-extras" */
-
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('php', 'variable', {
-  'this': /\$this\b/,
-  'global': /\$(?:_(?:SERVER|GET|POST|FILES|REQUEST|SESSION|ENV|COOKIE)|GLOBALS|HTTP_RAW_POST_DATA|argc|argv|php_errormsg|http_response_header)\b/,
-  'scope': {
-    pattern: /\b[\w\\]+::/,
-    inside: {
-      keyword: /static|self|parent/,
-      punctuation: /::|\\/
-    }
-  }
-});
 /* "prismjs/components/prism-python" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.python = {
@@ -3814,13 +4179,36 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.python = {
     pattern: /(^|[^\\])#.*/,
     lookbehind: true
   },
+  'string-interpolation': {
+    pattern: /(?:f|rf|fr)(?:("""|''')[\s\S]+?\1|("|')(?:\\.|(?!\2)[^\\\r\n])*\2)/i,
+    greedy: true,
+    inside: {
+      'interpolation': {
+        // "{" <expression> <optional "!s", "!r", or "!a"> <optional ":" format specifier> "}"
+        pattern: /((?:^|[^{])(?:{{)*){(?!{)(?:[^{}]|{(?!{)(?:[^{}]|{(?!{)(?:[^{}])+})+})+}/,
+        lookbehind: true,
+        inside: {
+          'format-spec': {
+            pattern: /(:)[^:(){}]+(?=}$)/,
+            lookbehind: true
+          },
+          'conversion-option': {
+            pattern: /![sra](?=[:}]$)/,
+            alias: 'punctuation'
+          },
+          rest: null
+        }
+      },
+      'string': /[\s\S]+/
+    }
+  },
   'triple-quoted-string': {
-    pattern: /("""|''')[\s\S]+?\1/,
+    pattern: /(?:[rub]|rb|br)?("""|''')[\s\S]+?\1/i,
     greedy: true,
     alias: 'string'
   },
   'string': {
-    pattern: /("|')(?:\\.|(?!\1)[^\\\r\n])*\1/,
+    pattern: /(?:[rub]|rb|br)?("|')(?:\\.|(?!\1)[^\\\r\n])*\1/i,
     greedy: true
   },
   'function': {
@@ -3831,13 +4219,23 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.python = {
     pattern: /(\bclass\s+)\w+/i,
     lookbehind: true
   },
-  'keyword': /\b(?:as|assert|async|await|break|class|continue|def|del|elif|else|except|exec|finally|for|from|global|if|import|in|is|lambda|nonlocal|pass|print|raise|return|try|while|with|yield)\b/,
+  'decorator': {
+    pattern: /(^\s*)@\w+(?:\.\w+)*/i,
+    lookbehind: true,
+    alias: ['annotation', 'punctuation'],
+    inside: {
+      'punctuation': /\./
+    }
+  },
+  'keyword': /\b(?:and|as|assert|async|await|break|class|continue|def|del|elif|else|except|exec|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|print|raise|return|try|while|with|yield)\b/,
   'builtin': /\b(?:__import__|abs|all|any|apply|ascii|basestring|bin|bool|buffer|bytearray|bytes|callable|chr|classmethod|cmp|coerce|compile|complex|delattr|dict|dir|divmod|enumerate|eval|execfile|file|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|intern|isinstance|issubclass|iter|len|list|locals|long|map|max|memoryview|min|next|object|oct|open|ord|pow|property|range|raw_input|reduce|reload|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|unichr|unicode|vars|xrange|zip)\b/,
   'boolean': /\b(?:True|False|None)\b/,
   'number': /(?:\b(?=\d)|\B(?=\.))(?:0[bo])?(?:(?:\d|0x[\da-f])[\da-f]*\.?\d*|\.\d+)(?:e[+-]?\d+)?j?\b/i,
-  'operator': /[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]|\b(?:or|and|not)\b/,
+  'operator': /[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]/,
   'punctuation': /[{}[\];(),.:]/
 };
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.python['string-interpolation'].inside['interpolation'].inside.rest = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.python;
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.py = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.python;
 /* "prismjs/components/prism-reason" */
 
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.reason = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('clike', {
@@ -3852,7 +4250,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.reason = _prism_cor
   // 'class-name' must be matched *after* 'constructor' defined below
   'class-name': /\b[A-Z]\w*/,
   'keyword': /\b(?:and|as|assert|begin|class|constraint|do|done|downto|else|end|exception|external|for|fun|function|functor|if|in|include|inherit|initializer|lazy|let|method|module|mutable|new|nonrec|object|of|open|or|private|rec|sig|struct|switch|then|to|try|type|val|virtual|when|while|with)\b/,
-  'operator': /\.{3}|:[:=]|=(?:==?|>)?|<=?|>=?|[|^?'#!~`]|[+\-*\/]\.?|\b(?:mod|land|lor|lxor|lsl|lsr|asr)\b/
+  'operator': /\.{3}|:[:=]|\|>|->|=(?:==?|>)?|<=?|>=?|[|^?'#!~`]|[+\-*\/]\.?|\b(?:mod|land|lor|lxor|lsl|lsr|asr)\b/
 });
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('reason', 'class-name', {
   'character': {
@@ -3871,177 +4269,6 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('reaso
 }); // We can't match functions property, so let's not even try.
 
 delete _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.reason.function;
-/* "prismjs/components/prism-ruby" */
-
-/**
- * Original by Samuel Flores
- *
- * Adds the following new token classes:
- * 		constant, builtin, variable, symbol, regex
- */
-
-(function (Prism) {
-  Prism.languages.ruby = Prism.languages.extend('clike', {
-    'comment': [/#.*/, {
-      pattern: /^=begin(?:\r?\n|\r)(?:.*(?:\r?\n|\r))*?=end/m,
-      greedy: true
-    }],
-    'keyword': /\b(?:alias|and|BEGIN|begin|break|case|class|def|define_method|defined|do|each|else|elsif|END|end|ensure|false|for|if|in|module|new|next|nil|not|or|protected|private|public|raise|redo|require|rescue|retry|return|self|super|then|throw|true|undef|unless|until|when|while|yield)\b/
-  });
-  var interpolation = {
-    pattern: /#\{[^}]+\}/,
-    inside: {
-      'delimiter': {
-        pattern: /^#\{|\}$/,
-        alias: 'tag'
-      },
-      rest: Prism.languages.ruby
-    }
-  };
-  Prism.languages.insertBefore('ruby', 'keyword', {
-    'regex': [{
-      pattern: /%r([^a-zA-Z0-9\s{(\[<])(?:(?!\1)[^\\]|\\[\s\S])*\1[gim]{0,3}/,
-      greedy: true,
-      inside: {
-        'interpolation': interpolation
-      }
-    }, {
-      pattern: /%r\((?:[^()\\]|\\[\s\S])*\)[gim]{0,3}/,
-      greedy: true,
-      inside: {
-        'interpolation': interpolation
-      }
-    }, {
-      // Here we need to specifically allow interpolation
-      pattern: /%r\{(?:[^#{}\\]|#(?:\{[^}]+\})?|\\[\s\S])*\}[gim]{0,3}/,
-      greedy: true,
-      inside: {
-        'interpolation': interpolation
-      }
-    }, {
-      pattern: /%r\[(?:[^\[\]\\]|\\[\s\S])*\][gim]{0,3}/,
-      greedy: true,
-      inside: {
-        'interpolation': interpolation
-      }
-    }, {
-      pattern: /%r<(?:[^<>\\]|\\[\s\S])*>[gim]{0,3}/,
-      greedy: true,
-      inside: {
-        'interpolation': interpolation
-      }
-    }, {
-      pattern: /(^|[^/])\/(?!\/)(\[.+?]|\\.|[^/\\\r\n])+\/[gim]{0,3}(?=\s*($|[\r\n,.;})]))/,
-      lookbehind: true,
-      greedy: true
-    }],
-    'variable': /[@$]+[a-zA-Z_]\w*(?:[?!]|\b)/,
-    'symbol': {
-      pattern: /(^|[^:]):[a-zA-Z_]\w*(?:[?!]|\b)/,
-      lookbehind: true
-    }
-  });
-  Prism.languages.insertBefore('ruby', 'number', {
-    'builtin': /\b(?:Array|Bignum|Binding|Class|Continuation|Dir|Exception|FalseClass|File|Stat|Fixnum|Float|Hash|Integer|IO|MatchData|Method|Module|NilClass|Numeric|Object|Proc|Range|Regexp|String|Struct|TMS|Symbol|ThreadGroup|Thread|Time|TrueClass)\b/,
-    'constant': /\b[A-Z]\w*(?:[?!]|\b)/
-  });
-  Prism.languages.ruby.string = [{
-    pattern: /%[qQiIwWxs]?([^a-zA-Z0-9\s{(\[<])(?:(?!\1)[^\\]|\\[\s\S])*\1/,
-    greedy: true,
-    inside: {
-      'interpolation': interpolation
-    }
-  }, {
-    pattern: /%[qQiIwWxs]?\((?:[^()\\]|\\[\s\S])*\)/,
-    greedy: true,
-    inside: {
-      'interpolation': interpolation
-    }
-  }, {
-    // Here we need to specifically allow interpolation
-    pattern: /%[qQiIwWxs]?\{(?:[^#{}\\]|#(?:\{[^}]+\})?|\\[\s\S])*\}/,
-    greedy: true,
-    inside: {
-      'interpolation': interpolation
-    }
-  }, {
-    pattern: /%[qQiIwWxs]?\[(?:[^\[\]\\]|\\[\s\S])*\]/,
-    greedy: true,
-    inside: {
-      'interpolation': interpolation
-    }
-  }, {
-    pattern: /%[qQiIwWxs]?<(?:[^<>\\]|\\[\s\S])*>/,
-    greedy: true,
-    inside: {
-      'interpolation': interpolation
-    }
-  }, {
-    pattern: /("|')(?:#\{[^}]+\}|\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
-    greedy: true,
-    inside: {
-      'interpolation': interpolation
-    }
-  }];
-})(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
-/* "prismjs/components/prism-rust" */
-
-/* TODO
-	Add support for Markdown notation inside doc comments
-	Add support for nested block comments...
-	Match closure params even when not followed by dash or brace
-	Add better support for macro definition
-*/
-
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.rust = {
-  'comment': [{
-    pattern: /(^|[^\\])\/\*[\s\S]*?\*\//,
-    lookbehind: true
-  }, {
-    pattern: /(^|[^\\:])\/\/.*/,
-    lookbehind: true
-  }],
-  'string': [{
-    pattern: /b?r(#*)"(?:\\.|(?!"\1)[^\\\r\n])*"\1/,
-    greedy: true
-  }, {
-    pattern: /b?"(?:\\.|[^\\\r\n"])*"/,
-    greedy: true
-  }],
-  'char': {
-    pattern: /b?'(?:\\(?:x[0-7][\da-fA-F]|u{(?:[\da-fA-F]_*){1,6}|.)|[^\\\r\n\t'])'/,
-    alias: 'string'
-  },
-  'lifetime-annotation': {
-    pattern: /'[^\s>']+/,
-    alias: 'symbol'
-  },
-  'keyword': /\b(?:abstract|alignof|as|be|box|break|const|continue|crate|do|else|enum|extern|false|final|fn|for|if|impl|in|let|loop|match|mod|move|mut|offsetof|once|override|priv|pub|pure|ref|return|sizeof|static|self|struct|super|true|trait|type|typeof|unsafe|unsized|use|virtual|where|while|yield)\b/,
-  'attribute': {
-    pattern: /#!?\[.+?\]/,
-    greedy: true,
-    alias: 'attr-name'
-  },
-  'function': [/\w+(?=\s*\()/, // Macros can use parens or brackets
-  /\w+!(?=\s*\(|\[)/],
-  'macro-rules': {
-    pattern: /\w+!/,
-    alias: 'function'
-  },
-  // Hex, oct, bin, dec numbers with visual separators and type suffix
-  'number': /\b(?:0x[\dA-Fa-f](?:_?[\dA-Fa-f])*|0o[0-7](?:_?[0-7])*|0b[01](?:_?[01])*|(\d(?:_?\d)*)?\.?\d(?:_?\d)*(?:[Ee][+-]?\d+)?)(?:_?(?:[iu](?:8|16|32|64)?|f32|f64))?\b/,
-  // Closure params should not be confused with bitwise OR |
-  'closure-params': {
-    pattern: /\|[^|]*\|(?=\s*[{-])/,
-    inside: {
-      'punctuation': /[|:,]/,
-      'operator': /[&*]/
-    }
-  },
-  'punctuation': /[{}[\];(),:]|\.+|->/,
-  'operator': /[-+*\/%!^]=?|=[=>]?|@|&[&=]?|\|[|=]?|<<?=?|>>?=?/
-};
 /* "prismjs/components/prism-sass" */
 
 (function (Prism) {
@@ -4097,7 +4324,6 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.rust = {
   delete Prism.languages.sass.important; // Now that whole lines for other patterns are consumed,
   // what's left should be selectors
 
-  delete Prism.languages.sass.selector;
   Prism.languages.insertBefore('sass', 'punctuation', {
     'selector': {
       pattern: /([ \t]*)\S(?:,?[^,\r\n]+)*(?:,(?:\r?\n|\r)\1[ \t]+\S(?:,?[^,\r\n]+)*)*/,
@@ -4131,13 +4357,19 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.scss = _prism_core_
   // this one was hard to do, so please be careful if you edit this one :)
   'selector': {
     // Initial look-ahead is used to prevent matching of blank selectors
-    pattern: /(?=\S)[^@;{}()]?(?:[^@;{}()]|&|#\{\$[-\w]+\})+(?=\s*\{(?:\}|\s|[^}]+[:{][^}]+))/m,
+    pattern: /(?=\S)[^@;{}()]?(?:[^@;{}()]|#\{\$[-\w]+\})+(?=\s*\{(?:\}|\s|[^}]+[:{][^}]+))/m,
     inside: {
       'parent': {
         pattern: /&/,
         alias: 'important'
       },
       'placeholder': /%[-\w]+/,
+      'variable': /\$[-\w]+|#\{\$[-\w]+\}/
+    }
+  },
+  'property': {
+    pattern: /(?:[\w-]|\$[-\w]+|#\{\$[-\w]+\})+(?=\s*:)/,
+    inside: {
       'variable': /\$[-\w]+|#\{\$[-\w]+\}/
     }
   }
@@ -4148,12 +4380,6 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('scss'
     lookbehind: true
   }]
 });
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.scss.property = {
-  pattern: /(?:[\w-]|\$[-\w]+|#\{\$[-\w]+\})+(?=\s*:)/i,
-  inside: {
-    'variable': /\$[-\w]+|#\{\$[-\w]+\}/
-  }
-};
 _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('scss', 'important', {
   // var and interpolated vars
   'variable': /\$[-\w]+|#\{\$[-\w]+\}/
@@ -4168,7 +4394,10 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.insertBefore('scss'
     alias: 'keyword'
   },
   'boolean': /\b(?:true|false)\b/,
-  'null': /\bnull\b/,
+  'null': {
+    pattern: /\bnull\b/,
+    alias: 'keyword'
+  },
   'operator': {
     pattern: /(\s)(?:[-+*\/%]|[=!]=|<=?|>=?|and|or|not)(?=\s)/,
     lookbehind: true
@@ -4182,12 +4411,15 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.sql = {
     pattern: /(^|[^\\])(?:\/\*[\s\S]*?\*\/|(?:--|\/\/|#).*)/,
     lookbehind: true
   },
+  'variable': [{
+    pattern: /@(["'`])(?:\\[\s\S]|(?!\1)[^\\])+\1/,
+    greedy: true
+  }, /@[\w.$]+/],
   'string': {
-    pattern: /(^|[^@\\])("|')(?:\\[\s\S]|(?!\2)[^\\])*\2/,
+    pattern: /(^|[^@\\])("|')(?:\\[\s\S]|(?!\2)[^\\]|\2\2)*\2/,
     greedy: true,
     lookbehind: true
   },
-  'variable': /@[\w.$]+|@(["'`])(?:\\[\s\S]|(?!\1)[^\\])+\1/,
   'function': /\b(?:AVG|COUNT|FIRST|FORMAT|LAST|LCASE|LEN|MAX|MID|MIN|MOD|NOW|ROUND|SUM|UCASE)(?=\s*\()/i,
   // Should we highlight user defined functions too?
   'keyword': /\b(?:ACTION|ADD|AFTER|ALGORITHM|ALL|ALTER|ANALYZE|ANY|APPLY|AS|ASC|AUTHORIZATION|AUTO_INCREMENT|BACKUP|BDB|BEGIN|BERKELEYDB|BIGINT|BINARY|BIT|BLOB|BOOL|BOOLEAN|BREAK|BROWSE|BTREE|BULK|BY|CALL|CASCADED?|CASE|CHAIN|CHAR(?:ACTER|SET)?|CHECK(?:POINT)?|CLOSE|CLUSTERED|COALESCE|COLLATE|COLUMNS?|COMMENT|COMMIT(?:TED)?|COMPUTE|CONNECT|CONSISTENT|CONSTRAINT|CONTAINS(?:TABLE)?|CONTINUE|CONVERT|CREATE|CROSS|CURRENT(?:_DATE|_TIME|_TIMESTAMP|_USER)?|CURSOR|CYCLE|DATA(?:BASES?)?|DATE(?:TIME)?|DAY|DBCC|DEALLOCATE|DEC|DECIMAL|DECLARE|DEFAULT|DEFINER|DELAYED|DELETE|DELIMITERS?|DENY|DESC|DESCRIBE|DETERMINISTIC|DISABLE|DISCARD|DISK|DISTINCT|DISTINCTROW|DISTRIBUTED|DO|DOUBLE|DROP|DUMMY|DUMP(?:FILE)?|DUPLICATE|ELSE(?:IF)?|ENABLE|ENCLOSED|END|ENGINE|ENUM|ERRLVL|ERRORS|ESCAPED?|EXCEPT|EXEC(?:UTE)?|EXISTS|EXIT|EXPLAIN|EXTENDED|FETCH|FIELDS|FILE|FILLFACTOR|FIRST|FIXED|FLOAT|FOLLOWING|FOR(?: EACH ROW)?|FORCE|FOREIGN|FREETEXT(?:TABLE)?|FROM|FULL|FUNCTION|GEOMETRY(?:COLLECTION)?|GLOBAL|GOTO|GRANT|GROUP|HANDLER|HASH|HAVING|HOLDLOCK|HOUR|IDENTITY(?:_INSERT|COL)?|IF|IGNORE|IMPORT|INDEX|INFILE|INNER|INNODB|INOUT|INSERT|INT|INTEGER|INTERSECT|INTERVAL|INTO|INVOKER|ISOLATION|ITERATE|JOIN|KEYS?|KILL|LANGUAGE|LAST|LEAVE|LEFT|LEVEL|LIMIT|LINENO|LINES|LINESTRING|LOAD|LOCAL|LOCK|LONG(?:BLOB|TEXT)|LOOP|MATCH(?:ED)?|MEDIUM(?:BLOB|INT|TEXT)|MERGE|MIDDLEINT|MINUTE|MODE|MODIFIES|MODIFY|MONTH|MULTI(?:LINESTRING|POINT|POLYGON)|NATIONAL|NATURAL|NCHAR|NEXT|NO|NONCLUSTERED|NULLIF|NUMERIC|OFF?|OFFSETS?|ON|OPEN(?:DATASOURCE|QUERY|ROWSET)?|OPTIMIZE|OPTION(?:ALLY)?|ORDER|OUT(?:ER|FILE)?|OVER|PARTIAL|PARTITION|PERCENT|PIVOT|PLAN|POINT|POLYGON|PRECEDING|PRECISION|PREPARE|PREV|PRIMARY|PRINT|PRIVILEGES|PROC(?:EDURE)?|PUBLIC|PURGE|QUICK|RAISERROR|READS?|REAL|RECONFIGURE|REFERENCES|RELEASE|RENAME|REPEAT(?:ABLE)?|REPLACE|REPLICATION|REQUIRE|RESIGNAL|RESTORE|RESTRICT|RETURNS?|REVOKE|RIGHT|ROLLBACK|ROUTINE|ROW(?:COUNT|GUIDCOL|S)?|RTREE|RULE|SAVE(?:POINT)?|SCHEMA|SECOND|SELECT|SERIAL(?:IZABLE)?|SESSION(?:_USER)?|SET(?:USER)?|SHARE|SHOW|SHUTDOWN|SIMPLE|SMALLINT|SNAPSHOT|SOME|SONAME|SQL|START(?:ING)?|STATISTICS|STATUS|STRIPED|SYSTEM_USER|TABLES?|TABLESPACE|TEMP(?:ORARY|TABLE)?|TERMINATED|TEXT(?:SIZE)?|THEN|TIME(?:STAMP)?|TINY(?:BLOB|INT|TEXT)|TOP?|TRAN(?:SACTIONS?)?|TRIGGER|TRUNCATE|TSEQUAL|TYPES?|UNBOUNDED|UNCOMMITTED|UNDEFINED|UNION|UNIQUE|UNLOCK|UNPIVOT|UNSIGNED|UPDATE(?:TEXT)?|USAGE|USE|USER|USING|VALUES?|VAR(?:BINARY|CHAR|CHARACTER|YING)|VIEW|WAITFOR|WARNINGS|WHEN|WHERE|WHILE|WITH(?: ROLLUP|IN)?|WORK|WRITE(?:TEXT)?|YEAR)\b/i,
@@ -4301,53 +4533,32 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.sql = {
     'punctuation': /[{}()\[\];:.]/
   };
 })(_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
-/* "prismjs/components/prism-swift" */
-// issues: nested multiline comments
+/* "prismjs/components/prism-wasm" */
 
 
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.swift = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('clike', {
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.wasm = {
+  'comment': [/\(;[\s\S]*?;\)/, {
+    pattern: /;;.*/,
+    greedy: true
+  }],
   'string': {
-    pattern: /("|')(\\(?:\((?:[^()]|\([^)]+\))+\)|\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
-    greedy: true,
-    inside: {
-      'interpolation': {
-        pattern: /\\\((?:[^()]|\([^)]+\))+\)/,
-        inside: {
-          delimiter: {
-            pattern: /^\\\(|\)$/,
-            alias: 'variable' // See rest below
-
-          }
-        }
-      }
-    }
+    pattern: /"(?:\\[\s\S]|[^"\\])*"/,
+    greedy: true
   },
-  'keyword': /\b(?:as|associativity|break|case|catch|class|continue|convenience|default|defer|deinit|didSet|do|dynamic(?:Type)?|else|enum|extension|fallthrough|final|for|func|get|guard|if|import|in|infix|init|inout|internal|is|lazy|left|let|mutating|new|none|nonmutating|operator|optional|override|postfix|precedence|prefix|private|protocol|public|repeat|required|rethrows|return|right|safe|self|Self|set|static|struct|subscript|super|switch|throws?|try|Type|typealias|unowned|unsafe|var|weak|where|while|willSet|__(?:COLUMN__|FILE__|FUNCTION__|LINE__))\b/,
-  'number': /\b(?:[\d_]+(?:\.[\de_]+)?|0x[a-f0-9_]+(?:\.[a-f0-9p_]+)?|0b[01_]+|0o[0-7_]+)\b/i,
-  'constant': /\b(?:nil|[A-Z_]{2,}|k[A-Z][A-Za-z_]+)\b/,
-  'atrule': /@\b(?:IB(?:Outlet|Designable|Action|Inspectable)|class_protocol|exported|noreturn|NS(?:Copying|Managed)|objc|UIApplicationMain|auto_closure)\b/,
-  'builtin': /\b(?:[A-Z]\S+|abs|advance|alignof(?:Value)?|assert|contains|count(?:Elements)?|debugPrint(?:ln)?|distance|drop(?:First|Last)|dump|enumerate|equal|filter|find|first|getVaList|indices|isEmpty|join|last|lexicographicalCompare|map|max(?:Element)?|min(?:Element)?|numericCast|overlaps|partition|print(?:ln)?|reduce|reflect|reverse|sizeof(?:Value)?|sort(?:ed)?|split|startsWith|stride(?:of(?:Value)?)?|suffix|swap|toDebugString|toString|transcode|underestimateCount|unsafeBitCast|with(?:ExtendedLifetime|Unsafe(?:MutablePointers?|Pointers?)|VaList))\b/
-});
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.swift['string'].inside['interpolation'].inside.rest = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.swift;
-/* "prismjs/components/prism-typescript" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.typescript = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.extend('javascript', {
-  // From JavaScript Prism keyword list and TypeScript language spec: https://github.com/Microsoft/TypeScript/blob/master/doc/spec.md#221-reserved-words
-  'keyword': /\b(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|var|void|while|with|yield|module|declare|constructor|namespace|abstract|require|type)\b/,
-  'builtin': /\b(?:string|Function|any|number|boolean|Array|symbol|console)\b/
-});
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.ts = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.typescript;
-/* "prismjs/components/prism-vim" */
-
-_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.vim = {
-  'string': /"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\r\n]|'')*'/,
-  'comment': /".*/,
-  'function': /\w+(?=\()/,
-  'keyword': /\b(?:ab|abbreviate|abc|abclear|abo|aboveleft|al|all|arga|argadd|argd|argdelete|argdo|arge|argedit|argg|argglobal|argl|arglocal|ar|args|argu|argument|as|ascii|bad|badd|ba|ball|bd|bdelete|be|bel|belowright|bf|bfirst|bl|blast|bm|bmodified|bn|bnext|bN|bNext|bo|botright|bp|bprevious|brea|break|breaka|breakadd|breakd|breakdel|breakl|breaklist|br|brewind|bro|browse|bufdo|b|buffer|buffers|bun|bunload|bw|bwipeout|ca|cabbrev|cabc|cabclear|caddb|caddbuffer|cad|caddexpr|caddf|caddfile|cal|call|cat|catch|cb|cbuffer|cc|ccl|cclose|cd|ce|center|cex|cexpr|cf|cfile|cfir|cfirst|cgetb|cgetbuffer|cgete|cgetexpr|cg|cgetfile|c|change|changes|chd|chdir|che|checkpath|checkt|checktime|cla|clast|cl|clist|clo|close|cmapc|cmapclear|cnew|cnewer|cn|cnext|cN|cNext|cnf|cnfile|cNfcNfile|cnorea|cnoreabbrev|col|colder|colo|colorscheme|comc|comclear|comp|compiler|conf|confirm|con|continue|cope|copen|co|copy|cpf|cpfile|cp|cprevious|cq|cquit|cr|crewind|cuna|cunabbrev|cu|cunmap|cw|cwindow|debugg|debuggreedy|delc|delcommand|d|delete|delf|delfunction|delm|delmarks|diffg|diffget|diffoff|diffpatch|diffpu|diffput|diffsplit|diffthis|diffu|diffupdate|dig|digraphs|di|display|dj|djump|dl|dlist|dr|drop|ds|dsearch|dsp|dsplit|earlier|echoe|echoerr|echom|echomsg|echon|e|edit|el|else|elsei|elseif|em|emenu|endfo|endfor|endf|endfunction|endfun|en|endif|endt|endtry|endw|endwhile|ene|enew|ex|exi|exit|exu|exusage|f|file|files|filetype|fina|finally|fin|find|fini|finish|fir|first|fix|fixdel|fo|fold|foldc|foldclose|folddoc|folddoclosed|foldd|folddoopen|foldo|foldopen|for|fu|fun|function|go|goto|gr|grep|grepa|grepadd|ha|hardcopy|h|help|helpf|helpfind|helpg|helpgrep|helpt|helptags|hid|hide|his|history|ia|iabbrev|iabc|iabclear|if|ij|ijump|il|ilist|imapc|imapclear|in|inorea|inoreabbrev|isearch|isp|isplit|iuna|iunabbrev|iu|iunmap|j|join|ju|jumps|k|keepalt|keepj|keepjumps|kee|keepmarks|laddb|laddbuffer|lad|laddexpr|laddf|laddfile|lan|language|la|last|later|lb|lbuffer|lc|lcd|lch|lchdir|lcl|lclose|let|left|lefta|leftabove|lex|lexpr|lf|lfile|lfir|lfirst|lgetb|lgetbuffer|lgete|lgetexpr|lg|lgetfile|lgr|lgrep|lgrepa|lgrepadd|lh|lhelpgrep|l|list|ll|lla|llast|lli|llist|lmak|lmake|lm|lmap|lmapc|lmapclear|lnew|lnewer|lne|lnext|lN|lNext|lnf|lnfile|lNf|lNfile|ln|lnoremap|lo|loadview|loc|lockmarks|lockv|lockvar|lol|lolder|lop|lopen|lpf|lpfile|lp|lprevious|lr|lrewind|ls|lt|ltag|lu|lunmap|lv|lvimgrep|lvimgrepa|lvimgrepadd|lw|lwindow|mak|make|ma|mark|marks|mat|match|menut|menutranslate|mk|mkexrc|mks|mksession|mksp|mkspell|mkvie|mkview|mkv|mkvimrc|mod|mode|m|move|mzf|mzfile|mz|mzscheme|nbkey|new|n|next|N|Next|nmapc|nmapclear|noh|nohlsearch|norea|noreabbrev|nu|number|nun|nunmap|omapc|omapclear|on|only|o|open|opt|options|ou|ounmap|pc|pclose|ped|pedit|pe|perl|perld|perldo|po|pop|popu|popup|pp|ppop|pre|preserve|prev|previous|p|print|P|Print|profd|profdel|prof|profile|promptf|promptfind|promptr|promptrepl|ps|psearch|pta|ptag|ptf|ptfirst|ptj|ptjump|ptl|ptlast|ptn|ptnext|ptN|ptNext|ptp|ptprevious|ptr|ptrewind|pts|ptselect|pu|put|pw|pwd|pyf|pyfile|py|python|qa|qall|q|quit|quita|quitall|r|read|rec|recover|redi|redir|red|redo|redr|redraw|redraws|redrawstatus|reg|registers|res|resize|ret|retab|retu|return|rew|rewind|ri|right|rightb|rightbelow|rub|ruby|rubyd|rubydo|rubyf|rubyfile|ru|runtime|rv|rviminfo|sal|sall|san|sandbox|sa|sargument|sav|saveas|sba|sball|sbf|sbfirst|sbl|sblast|sbm|sbmodified|sbn|sbnext|sbN|sbNext|sbp|sbprevious|sbr|sbrewind|sb|sbuffer|scripte|scriptencoding|scrip|scriptnames|se|set|setf|setfiletype|setg|setglobal|setl|setlocal|sf|sfind|sfir|sfirst|sh|shell|sign|sil|silent|sim|simalt|sla|slast|sl|sleep|sm|smagic|sm|smap|smapc|smapclear|sme|smenu|sn|snext|sN|sNext|sni|sniff|sno|snomagic|snor|snoremap|snoreme|snoremenu|sor|sort|so|source|spelld|spelldump|spe|spellgood|spelli|spellinfo|spellr|spellrepall|spellu|spellundo|spellw|spellwrong|sp|split|spr|sprevious|sre|srewind|sta|stag|startg|startgreplace|star|startinsert|startr|startreplace|stj|stjump|st|stop|stopi|stopinsert|sts|stselect|sun|sunhide|sunm|sunmap|sus|suspend|sv|sview|syncbind|t|tab|tabc|tabclose|tabd|tabdo|tabe|tabedit|tabf|tabfind|tabfir|tabfirst|tabl|tablast|tabm|tabmove|tabnew|tabn|tabnext|tabN|tabNext|tabo|tabonly|tabp|tabprevious|tabr|tabrewind|tabs|ta|tag|tags|tc|tcl|tcld|tcldo|tclf|tclfile|te|tearoff|tf|tfirst|th|throw|tj|tjump|tl|tlast|tm|tm|tmenu|tn|tnext|tN|tNext|to|topleft|tp|tprevious|tr|trewind|try|ts|tselect|tu|tu|tunmenu|una|unabbreviate|u|undo|undoj|undojoin|undol|undolist|unh|unhide|unlet|unlo|unlockvar|unm|unmap|up|update|verb|verbose|ve|version|vert|vertical|vie|view|vim|vimgrep|vimgrepa|vimgrepadd|vi|visual|viu|viusage|vmapc|vmapclear|vne|vnew|vs|vsplit|vu|vunmap|wa|wall|wh|while|winc|wincmd|windo|winp|winpos|win|winsize|wn|wnext|wN|wNext|wp|wprevious|wq|wqa|wqall|w|write|ws|wsverb|wv|wviminfo|X|xa|xall|x|xit|xm|xmap|xmapc|xmapclear|xme|xmenu|XMLent|XMLns|xn|xnoremap|xnoreme|xnoremenu|xu|xunmap|y|yank)\b/,
-  'builtin': /\b(?:autocmd|acd|ai|akm|aleph|allowrevins|altkeymap|ambiwidth|ambw|anti|antialias|arab|arabic|arabicshape|ari|arshape|autochdir|autoindent|autoread|autowrite|autowriteall|aw|awa|background|backspace|backup|backupcopy|backupdir|backupext|backupskip|balloondelay|ballooneval|balloonexpr|bdir|bdlay|beval|bex|bexpr|bg|bh|bin|binary|biosk|bioskey|bk|bkc|bomb|breakat|brk|browsedir|bs|bsdir|bsk|bt|bufhidden|buflisted|buftype|casemap|ccv|cdpath|cedit|cfu|ch|charconvert|ci|cin|cindent|cink|cinkeys|cino|cinoptions|cinw|cinwords|clipboard|cmdheight|cmdwinheight|cmp|cms|columns|com|comments|commentstring|compatible|complete|completefunc|completeopt|consk|conskey|copyindent|cot|cpo|cpoptions|cpt|cscopepathcomp|cscopeprg|cscopequickfix|cscopetag|cscopetagorder|cscopeverbose|cspc|csprg|csqf|cst|csto|csverb|cuc|cul|cursorcolumn|cursorline|cwh|debug|deco|def|define|delcombine|dex|dg|dict|dictionary|diff|diffexpr|diffopt|digraph|dip|dir|directory|dy|ea|ead|eadirection|eb|ed|edcompatible|ef|efm|ei|ek|enc|encoding|endofline|eol|ep|equalalways|equalprg|errorbells|errorfile|errorformat|esckeys|et|eventignore|expandtab|exrc|fcl|fcs|fdc|fde|fdi|fdl|fdls|fdm|fdn|fdo|fdt|fen|fenc|fencs|fex|ff|ffs|fileencoding|fileencodings|fileformat|fileformats|fillchars|fk|fkmap|flp|fml|fmr|foldcolumn|foldenable|foldexpr|foldignore|foldlevel|foldlevelstart|foldmarker|foldmethod|foldminlines|foldnestmax|foldtext|formatexpr|formatlistpat|formatoptions|formatprg|fp|fs|fsync|ft|gcr|gd|gdefault|gfm|gfn|gfs|gfw|ghr|gp|grepformat|grepprg|gtl|gtt|guicursor|guifont|guifontset|guifontwide|guiheadroom|guioptions|guipty|guitablabel|guitabtooltip|helpfile|helpheight|helplang|hf|hh|hi|hidden|highlight|hk|hkmap|hkmapp|hkp|hl|hlg|hls|hlsearch|ic|icon|iconstring|ignorecase|im|imactivatekey|imak|imc|imcmdline|imd|imdisable|imi|iminsert|ims|imsearch|inc|include|includeexpr|incsearch|inde|indentexpr|indentkeys|indk|inex|inf|infercase|insertmode|isf|isfname|isi|isident|isk|iskeyword|isprint|joinspaces|js|key|keymap|keymodel|keywordprg|km|kmp|kp|langmap|langmenu|laststatus|lazyredraw|lbr|lcs|linebreak|lines|linespace|lisp|lispwords|listchars|loadplugins|lpl|lsp|lz|macatsui|magic|makeef|makeprg|matchpairs|matchtime|maxcombine|maxfuncdepth|maxmapdepth|maxmem|maxmempattern|maxmemtot|mco|mef|menuitems|mfd|mh|mis|mkspellmem|ml|mls|mm|mmd|mmp|mmt|modeline|modelines|modifiable|modified|more|mouse|mousef|mousefocus|mousehide|mousem|mousemodel|mouses|mouseshape|mouset|mousetime|mp|mps|msm|mzq|mzquantum|nf|nrformats|numberwidth|nuw|odev|oft|ofu|omnifunc|opendevice|operatorfunc|opfunc|osfiletype|pa|para|paragraphs|paste|pastetoggle|patchexpr|patchmode|path|pdev|penc|pex|pexpr|pfn|ph|pheader|pi|pm|pmbcs|pmbfn|popt|preserveindent|previewheight|previewwindow|printdevice|printencoding|printexpr|printfont|printheader|printmbcharset|printmbfont|printoptions|prompt|pt|pumheight|pvh|pvw|qe|quoteescape|readonly|remap|report|restorescreen|revins|rightleft|rightleftcmd|rl|rlc|ro|rs|rtp|ruf|ruler|rulerformat|runtimepath|sbo|sc|scb|scr|scroll|scrollbind|scrolljump|scrolloff|scrollopt|scs|sect|sections|secure|sel|selection|selectmode|sessionoptions|sft|shcf|shellcmdflag|shellpipe|shellquote|shellredir|shellslash|shelltemp|shelltype|shellxquote|shiftround|shiftwidth|shm|shortmess|shortname|showbreak|showcmd|showfulltag|showmatch|showmode|showtabline|shq|si|sidescroll|sidescrolloff|siso|sj|slm|smartcase|smartindent|smarttab|smc|smd|softtabstop|sol|spc|spell|spellcapcheck|spellfile|spelllang|spellsuggest|spf|spl|splitbelow|splitright|sps|sr|srr|ss|ssl|ssop|stal|startofline|statusline|stl|stmp|su|sua|suffixes|suffixesadd|sw|swapfile|swapsync|swb|swf|switchbuf|sws|sxq|syn|synmaxcol|syntax|tabline|tabpagemax|tabstop|tagbsearch|taglength|tagrelative|tagstack|tal|tb|tbi|tbidi|tbis|tbs|tenc|term|termbidi|termencoding|terse|textauto|textmode|textwidth|tgst|thesaurus|tildeop|timeout|timeoutlen|title|titlelen|titleold|titlestring|toolbar|toolbariconsize|top|tpm|tsl|tsr|ttimeout|ttimeoutlen|ttm|tty|ttybuiltin|ttyfast|ttym|ttymouse|ttyscroll|ttytype|tw|tx|uc|ul|undolevels|updatecount|updatetime|ut|vb|vbs|vdir|verbosefile|vfile|viewdir|viewoptions|viminfo|virtualedit|visualbell|vop|wak|warn|wb|wc|wcm|wd|weirdinvert|wfh|wfw|whichwrap|wi|wig|wildchar|wildcharm|wildignore|wildmenu|wildmode|wildoptions|wim|winaltkeys|window|winfixheight|winfixwidth|winheight|winminheight|winminwidth|winwidth|wiv|wiw|wm|wmh|wmnu|wmw|wop|wrap|wrapmargin|wrapscan|writeany|writebackup|writedelay|ww|noacd|noai|noakm|noallowrevins|noaltkeymap|noanti|noantialias|noar|noarab|noarabic|noarabicshape|noari|noarshape|noautochdir|noautoindent|noautoread|noautowrite|noautowriteall|noaw|noawa|nobackup|noballooneval|nobeval|nobin|nobinary|nobiosk|nobioskey|nobk|nobl|nobomb|nobuflisted|nocf|noci|nocin|nocindent|nocompatible|noconfirm|noconsk|noconskey|nocopyindent|nocp|nocscopetag|nocscopeverbose|nocst|nocsverb|nocuc|nocul|nocursorcolumn|nocursorline|nodeco|nodelcombine|nodg|nodiff|nodigraph|nodisable|noea|noeb|noed|noedcompatible|noek|noendofline|noeol|noequalalways|noerrorbells|noesckeys|noet|noex|noexpandtab|noexrc|nofen|nofk|nofkmap|nofoldenable|nogd|nogdefault|noguipty|nohid|nohidden|nohk|nohkmap|nohkmapp|nohkp|nohls|noic|noicon|noignorecase|noim|noimc|noimcmdline|noimd|noincsearch|noinf|noinfercase|noinsertmode|nois|nojoinspaces|nojs|nolazyredraw|nolbr|nolinebreak|nolisp|nolist|noloadplugins|nolpl|nolz|noma|nomacatsui|nomagic|nomh|noml|nomod|nomodeline|nomodifiable|nomodified|nomore|nomousef|nomousefocus|nomousehide|nonu|nonumber|noodev|noopendevice|nopaste|nopi|nopreserveindent|nopreviewwindow|noprompt|nopvw|noreadonly|noremap|norestorescreen|norevins|nori|norightleft|norightleftcmd|norl|norlc|noro|nors|noru|noruler|nosb|nosc|noscb|noscrollbind|noscs|nosecure|nosft|noshellslash|noshelltemp|noshiftround|noshortname|noshowcmd|noshowfulltag|noshowmatch|noshowmode|nosi|nosm|nosmartcase|nosmartindent|nosmarttab|nosmd|nosn|nosol|nospell|nosplitbelow|nosplitright|nospr|nosr|nossl|nosta|nostartofline|nostmp|noswapfile|noswf|nota|notagbsearch|notagrelative|notagstack|notbi|notbidi|notbs|notermbidi|noterse|notextauto|notextmode|notf|notgst|notildeop|notimeout|notitle|noto|notop|notr|nottimeout|nottybuiltin|nottyfast|notx|novb|novisualbell|nowa|nowarn|nowb|noweirdinvert|nowfh|nowfw|nowildmenu|nowinfixheight|nowinfixwidth|nowiv|nowmnu|nowrap|nowrapscan|nowrite|nowriteany|nowritebackup|nows|invacd|invai|invakm|invallowrevins|invaltkeymap|invanti|invantialias|invar|invarab|invarabic|invarabicshape|invari|invarshape|invautochdir|invautoindent|invautoread|invautowrite|invautowriteall|invaw|invawa|invbackup|invballooneval|invbeval|invbin|invbinary|invbiosk|invbioskey|invbk|invbl|invbomb|invbuflisted|invcf|invci|invcin|invcindent|invcompatible|invconfirm|invconsk|invconskey|invcopyindent|invcp|invcscopetag|invcscopeverbose|invcst|invcsverb|invcuc|invcul|invcursorcolumn|invcursorline|invdeco|invdelcombine|invdg|invdiff|invdigraph|invdisable|invea|inveb|inved|invedcompatible|invek|invendofline|inveol|invequalalways|inverrorbells|invesckeys|invet|invex|invexpandtab|invexrc|invfen|invfk|invfkmap|invfoldenable|invgd|invgdefault|invguipty|invhid|invhidden|invhk|invhkmap|invhkmapp|invhkp|invhls|invhlsearch|invic|invicon|invignorecase|invim|invimc|invimcmdline|invimd|invincsearch|invinf|invinfercase|invinsertmode|invis|invjoinspaces|invjs|invlazyredraw|invlbr|invlinebreak|invlisp|invlist|invloadplugins|invlpl|invlz|invma|invmacatsui|invmagic|invmh|invml|invmod|invmodeline|invmodifiable|invmodified|invmore|invmousef|invmousefocus|invmousehide|invnu|invnumber|invodev|invopendevice|invpaste|invpi|invpreserveindent|invpreviewwindow|invprompt|invpvw|invreadonly|invremap|invrestorescreen|invrevins|invri|invrightleft|invrightleftcmd|invrl|invrlc|invro|invrs|invru|invruler|invsb|invsc|invscb|invscrollbind|invscs|invsecure|invsft|invshellslash|invshelltemp|invshiftround|invshortname|invshowcmd|invshowfulltag|invshowmatch|invshowmode|invsi|invsm|invsmartcase|invsmartindent|invsmarttab|invsmd|invsn|invsol|invspell|invsplitbelow|invsplitright|invspr|invsr|invssl|invsta|invstartofline|invstmp|invswapfile|invswf|invta|invtagbsearch|invtagrelative|invtagstack|invtbi|invtbidi|invtbs|invtermbidi|invterse|invtextauto|invtextmode|invtf|invtgst|invtildeop|invtimeout|invtitle|invto|invtop|invtr|invttimeout|invttybuiltin|invttyfast|invtx|invvb|invvisualbell|invwa|invwarn|invwb|invweirdinvert|invwfh|invwfw|invwildmenu|invwinfixheight|invwinfixwidth|invwiv|invwmnu|invwrap|invwrapscan|invwrite|invwriteany|invwritebackup|invws|t_AB|t_AF|t_al|t_AL|t_bc|t_cd|t_ce|t_Ce|t_cl|t_cm|t_Co|t_cs|t_Cs|t_CS|t_CV|t_da|t_db|t_dl|t_DL|t_EI|t_F1|t_F2|t_F3|t_F4|t_F5|t_F6|t_F7|t_F8|t_F9|t_fs|t_IE|t_IS|t_k1|t_K1|t_k2|t_k3|t_K3|t_k4|t_K4|t_k5|t_K5|t_k6|t_K6|t_k7|t_K7|t_k8|t_K8|t_k9|t_K9|t_KA|t_kb|t_kB|t_KB|t_KC|t_kd|t_kD|t_KD|t_ke|t_KE|t_KF|t_KG|t_kh|t_KH|t_kI|t_KI|t_KJ|t_KK|t_kl|t_KL|t_kN|t_kP|t_kr|t_ks|t_ku|t_le|t_mb|t_md|t_me|t_mr|t_ms|t_nd|t_op|t_RI|t_RV|t_Sb|t_se|t_Sf|t_SI|t_so|t_sr|t_te|t_ti|t_ts|t_ue|t_us|t_ut|t_vb|t_ve|t_vi|t_vs|t_WP|t_WS|t_xs|t_ZH|t_ZR)\b/,
-  'number': /\b(?:0x[\da-f]+|\d+(?:\.\d+)?)\b/i,
-  'operator': /\|\||&&|[-+.]=?|[=!](?:[=~][#?]?)?|[<>]=?[#?]?|[*\/%?]|\b(?:is(?:not)?)\b/,
-  'punctuation': /[{}[\](),;:]/
+  'keyword': [{
+    pattern: /\b(?:align|offset)=/,
+    inside: {
+      'operator': /=/
+    }
+  }, {
+    pattern: /\b(?:(?:f32|f64|i32|i64)(?:\.(?:abs|add|and|ceil|clz|const|convert_[su]\/i(?:32|64)|copysign|ctz|demote\/f64|div(?:_[su])?|eqz?|extend_[su]\/i32|floor|ge(?:_[su])?|gt(?:_[su])?|le(?:_[su])?|load(?:(?:8|16|32)_[su])?|lt(?:_[su])?|max|min|mul|nearest|neg?|or|popcnt|promote\/f32|reinterpret\/[fi](?:32|64)|rem_[su]|rot[lr]|shl|shr_[su]|store(?:8|16|32)?|sqrt|sub|trunc(?:_[su]\/f(?:32|64))?|wrap\/i64|xor))?|memory\.(?:grow|size))\b/,
+    inside: {
+      'punctuation': /\./
+    }
+  }, /\b(?:anyfunc|block|br(?:_if|_table)?|call(?:_indirect)?|data|drop|elem|else|end|export|func|get_(?:global|local)|global|if|import|local|loop|memory|module|mut|nop|offset|param|result|return|select|set_(?:global|local)|start|table|tee_local|then|type|unreachable)\b/],
+  'variable': /\$[\w!#$%&'*+\-./:<=>?@\\^_`|~]+/i,
+  'number': /[+-]?\b(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?|0x[\da-fA-F](?:_?[\da-fA-F])*(?:\.[\da-fA-F](?:_?[\da-fA-D])*)?(?:[pP][+-]?\d(?:_?\d)*)?)\b|\binf\b|\bnan(?::0x[\da-fA-F](?:_?[\da-fA-D])*)?\b/,
+  'punctuation': /[()]/
 };
 /* "prismjs/components/prism-yaml" */
 
@@ -4384,7 +4595,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.yaml = {
     alias: 'important'
   },
   'string': {
-    pattern: /([:\-,[{]\s*(?:![^\s]+)?[ \t]*)("|')(?:(?!\2)[^\\\r\n]|\\.)*\2(?=[ \t]*(?:$|,|]|}))/m,
+    pattern: /([:\-,[{]\s*(?:![^\s]+)?[ \t]*)("|')(?:(?!\2)[^\\\r\n]|\\.)*\2(?=[ \t]*(?:$|,|]|}|\s*#))/m,
     lookbehind: true,
     greedy: true
   },
@@ -4396,6 +4607,7 @@ _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.yaml = {
   'important': /[&*][\w]+/,
   'punctuation': /---|[:[\]{}\-,|>?]|\.\.\./
 };
+_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.yml = _prism_core__WEBPACK_IMPORTED_MODULE_0___default.a.languages.yaml;
 /* harmony default export */ __webpack_exports__["default"] = (_prism_core__WEBPACK_IMPORTED_MODULE_0___default.a);
 
 /***/ }),
@@ -7702,7 +7914,7 @@ var withRouter = function withRouter(Component) {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/** @license React v16.8.3
+/** @license React v16.12.0
  * react.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -7724,39 +7936,49 @@ var checkPropTypes = __webpack_require__(/*! prop-types/checkPropTypes */ "./nod
 
 // TODO: this is special because it gets imported during build.
 
-var ReactVersion = '16.8.3';
+var ReactVersion = '16.12.0';
 
 // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
 // nor polyfill, then a plain number is used for performance.
 var hasSymbol = typeof Symbol === 'function' && Symbol.for;
-
 var REACT_ELEMENT_TYPE = hasSymbol ? Symbol.for('react.element') : 0xeac7;
 var REACT_PORTAL_TYPE = hasSymbol ? Symbol.for('react.portal') : 0xeaca;
 var REACT_FRAGMENT_TYPE = hasSymbol ? Symbol.for('react.fragment') : 0xeacb;
 var REACT_STRICT_MODE_TYPE = hasSymbol ? Symbol.for('react.strict_mode') : 0xeacc;
 var REACT_PROFILER_TYPE = hasSymbol ? Symbol.for('react.profiler') : 0xead2;
 var REACT_PROVIDER_TYPE = hasSymbol ? Symbol.for('react.provider') : 0xeacd;
-var REACT_CONTEXT_TYPE = hasSymbol ? Symbol.for('react.context') : 0xeace;
+var REACT_CONTEXT_TYPE = hasSymbol ? Symbol.for('react.context') : 0xeace; // TODO: We don't use AsyncMode or ConcurrentMode anymore. They were temporary
+// (unstable) APIs that have been removed. Can we remove the symbols?
+
 
 var REACT_CONCURRENT_MODE_TYPE = hasSymbol ? Symbol.for('react.concurrent_mode') : 0xeacf;
 var REACT_FORWARD_REF_TYPE = hasSymbol ? Symbol.for('react.forward_ref') : 0xead0;
 var REACT_SUSPENSE_TYPE = hasSymbol ? Symbol.for('react.suspense') : 0xead1;
+var REACT_SUSPENSE_LIST_TYPE = hasSymbol ? Symbol.for('react.suspense_list') : 0xead8;
 var REACT_MEMO_TYPE = hasSymbol ? Symbol.for('react.memo') : 0xead3;
 var REACT_LAZY_TYPE = hasSymbol ? Symbol.for('react.lazy') : 0xead4;
-
+var REACT_FUNDAMENTAL_TYPE = hasSymbol ? Symbol.for('react.fundamental') : 0xead5;
+var REACT_RESPONDER_TYPE = hasSymbol ? Symbol.for('react.responder') : 0xead6;
+var REACT_SCOPE_TYPE = hasSymbol ? Symbol.for('react.scope') : 0xead7;
 var MAYBE_ITERATOR_SYMBOL = typeof Symbol === 'function' && Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
-
 function getIteratorFn(maybeIterable) {
   if (maybeIterable === null || typeof maybeIterable !== 'object') {
     return null;
   }
+
   var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
   if (typeof maybeIterator === 'function') {
     return maybeIterator;
   }
+
   return null;
 }
+
+// Do not require this module directly! Use normal `invariant` calls with
+// template literal strings. The messages will be replaced with error codes
+// during build.
 
 /**
  * Use invariant() to assert state which your program assumes to be true.
@@ -7768,40 +7990,6 @@ function getIteratorFn(maybeIterable) {
  * The invariant message will be stripped in production, but the invariant
  * will remain to ensure logic does not differ in production.
  */
-
-var validateFormat = function () {};
-
-{
-  validateFormat = function (format) {
-    if (format === undefined) {
-      throw new Error('invariant requires an error message argument');
-    }
-  };
-}
-
-function invariant(condition, format, a, b, c, d, e, f) {
-  validateFormat(format);
-
-  if (!condition) {
-    var error = void 0;
-    if (format === undefined) {
-      error = new Error('Minified exception occurred; use the non-minified dev environment ' + 'for the full error message and additional helpful warnings.');
-    } else {
-      var args = [a, b, c, d, e, f];
-      var argIndex = 0;
-      error = new Error(format.replace(/%s/g, function () {
-        return args[argIndex++];
-      }));
-      error.name = 'Invariant Violation';
-    }
-
-    error.framesToPop = 1; // we don't care about invariant's own frame
-    throw error;
-  }
-}
-
-// Relying on the `invariant()` implementation lets us
-// preserve the format and params in the www builds.
 
 /**
  * Forked from fbjs/warning:
@@ -7816,12 +8004,11 @@ function invariant(condition, format, a, b, c, d, e, f) {
  * paths. Removing the logging code for production environments will keep the
  * same logic and follow the same code paths.
  */
-
-var lowPriorityWarning = function () {};
+var lowPriorityWarningWithoutStack = function () {};
 
 {
   var printWarning = function (format) {
-    for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+    for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
       args[_key - 1] = arguments[_key];
     }
 
@@ -7829,9 +8016,11 @@ var lowPriorityWarning = function () {};
     var message = 'Warning: ' + format.replace(/%s/g, function () {
       return args[argIndex++];
     });
+
     if (typeof console !== 'undefined') {
       console.warn(message);
     }
+
     try {
       // --- Welcome to debugging React ---
       // This error was thrown as a convenience so that you can use this stack
@@ -7840,21 +8029,22 @@ var lowPriorityWarning = function () {};
     } catch (x) {}
   };
 
-  lowPriorityWarning = function (condition, format) {
+  lowPriorityWarningWithoutStack = function (condition, format) {
     if (format === undefined) {
-      throw new Error('`lowPriorityWarning(condition, format, ...args)` requires a warning ' + 'message argument');
+      throw new Error('`lowPriorityWarningWithoutStack(condition, format, ...args)` requires a warning ' + 'message argument');
     }
+
     if (!condition) {
-      for (var _len2 = arguments.length, args = Array(_len2 > 2 ? _len2 - 2 : 0), _key2 = 2; _key2 < _len2; _key2++) {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 2 ? _len2 - 2 : 0), _key2 = 2; _key2 < _len2; _key2++) {
         args[_key2 - 2] = arguments[_key2];
       }
 
-      printWarning.apply(undefined, [format].concat(args));
+      printWarning.apply(void 0, [format].concat(args));
     }
   };
 }
 
-var lowPriorityWarning$1 = lowPriorityWarning;
+var lowPriorityWarningWithoutStack$1 = lowPriorityWarningWithoutStack;
 
 /**
  * Similar to invariant but only logs a warning if the condition is not met.
@@ -7862,35 +8052,37 @@ var lowPriorityWarning$1 = lowPriorityWarning;
  * paths. Removing the logging code for production environments will keep the
  * same logic and follow the same code paths.
  */
-
 var warningWithoutStack = function () {};
 
 {
   warningWithoutStack = function (condition, format) {
-    for (var _len = arguments.length, args = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+    for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
       args[_key - 2] = arguments[_key];
     }
 
     if (format === undefined) {
       throw new Error('`warningWithoutStack(condition, format, ...args)` requires a warning ' + 'message argument');
     }
+
     if (args.length > 8) {
       // Check before the condition to catch violations early.
       throw new Error('warningWithoutStack() currently supports at most 8 arguments.');
     }
+
     if (condition) {
       return;
     }
+
     if (typeof console !== 'undefined') {
       var argsWithFormat = args.map(function (item) {
         return '' + item;
       });
-      argsWithFormat.unshift('Warning: ' + format);
-
-      // We intentionally don't use spread (or .apply) directly because it
+      argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
       // breaks IE9: https://github.com/facebook/react/issues/13610
+
       Function.prototype.apply.call(console.error, console, argsWithFormat);
     }
+
     try {
       // --- Welcome to debugging React ---
       // This error was thrown as a convenience so that you can use this stack
@@ -7912,18 +8104,21 @@ function warnNoop(publicInstance, callerName) {
   {
     var _constructor = publicInstance.constructor;
     var componentName = _constructor && (_constructor.displayName || _constructor.name) || 'ReactClass';
-    var warningKey = componentName + '.' + callerName;
+    var warningKey = componentName + "." + callerName;
+
     if (didWarnStateUpdateForUnmountedComponent[warningKey]) {
       return;
     }
+
     warningWithoutStack$1(false, "Can't call %s on a component that is not yet mounted. " + 'This is a no-op, but it might indicate a bug in your application. ' + 'Instead, assign to `this.state` directly or define a `state = {};` ' + 'class property with the desired state in the %s component.', callerName, componentName);
     didWarnStateUpdateForUnmountedComponent[warningKey] = true;
   }
 }
-
 /**
  * This is the abstract API for an update queue.
  */
+
+
 var ReactNoopUpdateQueue = {
   /**
    * Checks whether or not this composite component is mounted.
@@ -7990,25 +8185,26 @@ var ReactNoopUpdateQueue = {
 };
 
 var emptyObject = {};
+
 {
   Object.freeze(emptyObject);
 }
-
 /**
  * Base class helpers for the updating state of a component.
  */
+
+
 function Component(props, context, updater) {
   this.props = props;
-  this.context = context;
-  // If a component has string refs, we will assign a different object later.
-  this.refs = emptyObject;
-  // We initialize the default updater but the real one gets injected by the
+  this.context = context; // If a component has string refs, we will assign a different object later.
+
+  this.refs = emptyObject; // We initialize the default updater but the real one gets injected by the
   // renderer.
+
   this.updater = updater || ReactNoopUpdateQueue;
 }
 
 Component.prototype.isReactComponent = {};
-
 /**
  * Sets a subset of the state. Always use this to mutate
  * state. You should treat `this.state` as immutable.
@@ -8034,11 +8230,16 @@ Component.prototype.isReactComponent = {};
  * @final
  * @protected
  */
+
 Component.prototype.setState = function (partialState, callback) {
-  !(typeof partialState === 'object' || typeof partialState === 'function' || partialState == null) ? invariant(false, 'setState(...): takes an object of state variables to update or a function which returns an object of state variables.') : void 0;
+  if (!(typeof partialState === 'object' || typeof partialState === 'function' || partialState == null)) {
+    {
+      throw Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables.");
+    }
+  }
+
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
 };
-
 /**
  * Forces an update. This should only be invoked when it is known with
  * certainty that we are **not** in a DOM transaction.
@@ -8053,28 +8254,33 @@ Component.prototype.setState = function (partialState, callback) {
  * @final
  * @protected
  */
+
+
 Component.prototype.forceUpdate = function (callback) {
   this.updater.enqueueForceUpdate(this, callback, 'forceUpdate');
 };
-
 /**
  * Deprecated APIs. These APIs used to exist on classic React classes but since
  * we would like to deprecate them, we're not going to move them over to this
  * modern base class. Instead, we define a getter that warns if it's accessed.
  */
+
+
 {
   var deprecatedAPIs = {
     isMounted: ['isMounted', 'Instead, make sure to clean up subscriptions and pending requests in ' + 'componentWillUnmount to prevent memory leaks.'],
     replaceState: ['replaceState', 'Refactor your code to use setState instead (see ' + 'https://github.com/facebook/react/issues/3236).']
   };
+
   var defineDeprecationWarning = function (methodName, info) {
     Object.defineProperty(Component.prototype, methodName, {
       get: function () {
-        lowPriorityWarning$1(false, '%s(...) is deprecated in plain JavaScript React classes. %s', info[0], info[1]);
+        lowPriorityWarningWithoutStack$1(false, '%s(...) is deprecated in plain JavaScript React classes. %s', info[0], info[1]);
         return undefined;
       }
     });
   };
+
   for (var fnName in deprecatedAPIs) {
     if (deprecatedAPIs.hasOwnProperty(fnName)) {
       defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
@@ -8083,23 +8289,25 @@ Component.prototype.forceUpdate = function (callback) {
 }
 
 function ComponentDummy() {}
-ComponentDummy.prototype = Component.prototype;
 
+ComponentDummy.prototype = Component.prototype;
 /**
  * Convenience component with default shallow equality check for sCU.
  */
+
 function PureComponent(props, context, updater) {
   this.props = props;
-  this.context = context;
-  // If a component has string refs, we will assign a different object later.
+  this.context = context; // If a component has string refs, we will assign a different object later.
+
   this.refs = emptyObject;
   this.updater = updater || ReactNoopUpdateQueue;
 }
 
 var pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
-pureComponentPrototype.constructor = PureComponent;
-// Avoid an extra prototype jump for these methods.
+pureComponentPrototype.constructor = PureComponent; // Avoid an extra prototype jump for these methods.
+
 _assign(pureComponentPrototype, Component.prototype);
+
 pureComponentPrototype.isPureReactComponent = true;
 
 // an immutable object with a single mutable value
@@ -8107,9 +8315,11 @@ function createRef() {
   var refObject = {
     current: null
   };
+
   {
     Object.seal(refObject);
   }
+
   return refObject;
 }
 
@@ -8122,6 +8332,14 @@ var ReactCurrentDispatcher = {
    * @type {ReactComponent}
    */
   current: null
+};
+
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+var ReactCurrentBatchConfig = {
+  suspense: null
 };
 
 /**
@@ -8139,19 +8357,22 @@ var ReactCurrentOwner = {
 };
 
 var BEFORE_SLASH_RE = /^(.*)[\\\/]/;
-
 var describeComponentFrame = function (name, source, ownerName) {
   var sourceInfo = '';
+
   if (source) {
     var path = source.fileName;
     var fileName = path.replace(BEFORE_SLASH_RE, '');
+
     {
       // In DEV, include code for a common special case:
       // prefer "folder/index.js" instead of just "index.js".
       if (/^index\./.test(fileName)) {
         var match = path.match(BEFORE_SLASH_RE);
+
         if (match) {
           var pathBeforeSlash = match[1];
+
           if (pathBeforeSlash) {
             var folderName = pathBeforeSlash.replace(BEFORE_SLASH_RE, '');
             fileName = folderName + '/' + fileName;
@@ -8159,15 +8380,16 @@ var describeComponentFrame = function (name, source, ownerName) {
         }
       }
     }
+
     sourceInfo = ' (at ' + fileName + ':' + source.lineNumber + ')';
   } else if (ownerName) {
     sourceInfo = ' (created by ' + ownerName + ')';
   }
+
   return '\n    in ' + (name || 'Unknown') + sourceInfo;
 };
 
 var Resolved = 1;
-
 
 function refineResolvedLazyComponent(lazyComponent) {
   return lazyComponent._status === Resolved ? lazyComponent._result : null;
@@ -8175,7 +8397,7 @@ function refineResolvedLazyComponent(lazyComponent) {
 
 function getWrappedName(outerType, innerType, wrapperName) {
   var functionName = innerType.displayName || innerType.name || '';
-  return outerType.displayName || (functionName !== '' ? wrapperName + '(' + functionName + ')' : wrapperName);
+  return outerType.displayName || (functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName);
 }
 
 function getComponentName(type) {
@@ -8183,58 +8405,74 @@ function getComponentName(type) {
     // Host root, text node or just invalid type.
     return null;
   }
+
   {
     if (typeof type.tag === 'number') {
       warningWithoutStack$1(false, 'Received an unexpected object in getComponentName(). ' + 'This is likely a bug in React. Please file an issue.');
     }
   }
+
   if (typeof type === 'function') {
     return type.displayName || type.name || null;
   }
+
   if (typeof type === 'string') {
     return type;
   }
+
   switch (type) {
-    case REACT_CONCURRENT_MODE_TYPE:
-      return 'ConcurrentMode';
     case REACT_FRAGMENT_TYPE:
       return 'Fragment';
+
     case REACT_PORTAL_TYPE:
       return 'Portal';
+
     case REACT_PROFILER_TYPE:
-      return 'Profiler';
+      return "Profiler";
+
     case REACT_STRICT_MODE_TYPE:
       return 'StrictMode';
+
     case REACT_SUSPENSE_TYPE:
       return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
   }
+
   if (typeof type === 'object') {
     switch (type.$$typeof) {
       case REACT_CONTEXT_TYPE:
         return 'Context.Consumer';
+
       case REACT_PROVIDER_TYPE:
         return 'Context.Provider';
+
       case REACT_FORWARD_REF_TYPE:
         return getWrappedName(type, type.render, 'ForwardRef');
+
       case REACT_MEMO_TYPE:
         return getComponentName(type.type);
+
       case REACT_LAZY_TYPE:
         {
           var thenable = type;
           var resolvedThenable = refineResolvedLazyComponent(thenable);
+
           if (resolvedThenable) {
             return getComponentName(resolvedThenable);
           }
+
+          break;
         }
     }
   }
+
   return null;
 }
 
 var ReactDebugCurrentFrame = {};
-
 var currentlyValidatingElement = null;
-
 function setCurrentlyValidatingElement(element) {
   {
     currentlyValidatingElement = element;
@@ -8246,17 +8484,17 @@ function setCurrentlyValidatingElement(element) {
   ReactDebugCurrentFrame.getCurrentStack = null;
 
   ReactDebugCurrentFrame.getStackAddendum = function () {
-    var stack = '';
+    var stack = ''; // Add an extra top frame while an element is being validated
 
-    // Add an extra top frame while an element is being validated
     if (currentlyValidatingElement) {
       var name = getComponentName(currentlyValidatingElement.type);
       var owner = currentlyValidatingElement._owner;
       stack += describeComponentFrame(name, currentlyValidatingElement._source, owner && getComponentName(owner.type));
-    }
+    } // Delegate to the injected renderer-specific implementation
 
-    // Delegate to the injected renderer-specific implementation
+
     var impl = ReactDebugCurrentFrame.getCurrentStack;
+
     if (impl) {
       stack += impl() || '';
     }
@@ -8265,9 +8503,18 @@ function setCurrentlyValidatingElement(element) {
   };
 }
 
+/**
+ * Used by act() to track whether you're inside an act() scope.
+ */
+var IsSomeRendererActing = {
+  current: false
+};
+
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher,
+  ReactCurrentBatchConfig: ReactCurrentBatchConfig,
   ReactCurrentOwner: ReactCurrentOwner,
+  IsSomeRendererActing: IsSomeRendererActing,
   // Used by renderers to avoid bundling object-assign twice in UMD bundles:
   assign: _assign
 };
@@ -8296,41 +8543,41 @@ var warning = warningWithoutStack$1;
     if (condition) {
       return;
     }
-    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-    var stack = ReactDebugCurrentFrame.getStackAddendum();
-    // eslint-disable-next-line react-internal/warning-and-invariant-args
 
-    for (var _len = arguments.length, args = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
+    var stack = ReactDebugCurrentFrame.getStackAddendum(); // eslint-disable-next-line react-internal/warning-and-invariant-args
+
+    for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
       args[_key - 2] = arguments[_key];
     }
 
-    warningWithoutStack$1.apply(undefined, [false, format + '%s'].concat(args, [stack]));
+    warningWithoutStack$1.apply(void 0, [false, format + '%s'].concat(args, [stack]));
   };
 }
 
 var warning$1 = warning;
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
-
 var RESERVED_PROPS = {
   key: true,
   ref: true,
   __self: true,
   __source: true
 };
-
-var specialPropKeyWarningShown = void 0;
-var specialPropRefWarningShown = void 0;
+var specialPropKeyWarningShown;
+var specialPropRefWarningShown;
 
 function hasValidRef(config) {
   {
     if (hasOwnProperty.call(config, 'ref')) {
       var getter = Object.getOwnPropertyDescriptor(config, 'ref').get;
+
       if (getter && getter.isReactWarning) {
         return false;
       }
     }
   }
+
   return config.ref !== undefined;
 }
 
@@ -8338,11 +8585,13 @@ function hasValidKey(config) {
   {
     if (hasOwnProperty.call(config, 'key')) {
       var getter = Object.getOwnPropertyDescriptor(config, 'key').get;
+
       if (getter && getter.isReactWarning) {
         return false;
       }
     }
   }
+
   return config.key !== undefined;
 }
 
@@ -8353,6 +8602,7 @@ function defineKeyPropWarningGetter(props, displayName) {
       warningWithoutStack$1(false, '%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://fb.me/react-special-props)', displayName);
     }
   };
+
   warnAboutAccessingKey.isReactWarning = true;
   Object.defineProperty(props, 'key', {
     get: warnAboutAccessingKey,
@@ -8367,22 +8617,24 @@ function defineRefPropWarningGetter(props, displayName) {
       warningWithoutStack$1(false, '%s: `ref` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://fb.me/react-special-props)', displayName);
     }
   };
+
   warnAboutAccessingRef.isReactWarning = true;
   Object.defineProperty(props, 'ref', {
     get: warnAboutAccessingRef,
     configurable: true
   });
 }
-
 /**
  * Factory method to create a new React element. This no longer adheres to
- * the class pattern, so do not use new to call it. Also, no instanceof check
- * will work. Instead test $$typeof field against Symbol.for('react.element') to check
+ * the class pattern, so do not use new to call it. Also, instanceof check
+ * will not work. Instead test $$typeof field against Symbol.for('react.element') to check
  * if something is a React Element.
  *
  * @param {*} type
+ * @param {*} props
  * @param {*} key
  * @param {string|object} ref
+ * @param {*} owner
  * @param {*} self A *temporary* helper to detect places where `this` is
  * different from the `owner` when React.createElement is called, so that we
  * can warn. We want to get rid of owner and replace string `ref`s with arrow
@@ -8390,21 +8642,19 @@ function defineRefPropWarningGetter(props, displayName) {
  * change in behavior.
  * @param {*} source An annotation object (added by a transpiler or otherwise)
  * indicating filename, line number, and/or other information.
- * @param {*} owner
- * @param {*} props
  * @internal
  */
+
+
 var ReactElement = function (type, key, ref, self, source, owner, props) {
   var element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
-
     // Built-in properties that belong on the element
     type: type,
     key: key,
     ref: ref,
     props: props,
-
     // Record the component responsible for creating this element.
     _owner: owner
   };
@@ -8414,33 +8664,33 @@ var ReactElement = function (type, key, ref, self, source, owner, props) {
     // an external backing store so that we can freeze the whole object.
     // This can be replaced with a WeakMap once they are implemented in
     // commonly used development environments.
-    element._store = {};
-
-    // To make comparing ReactElements easier for testing purposes, we make
+    element._store = {}; // To make comparing ReactElements easier for testing purposes, we make
     // the validation flag non-enumerable (where possible, which should
     // include every environment we run tests in), so the test framework
     // ignores it.
+
     Object.defineProperty(element._store, 'validated', {
       configurable: false,
       enumerable: false,
       writable: true,
       value: false
-    });
-    // self and source are DEV only properties.
+    }); // self and source are DEV only properties.
+
     Object.defineProperty(element, '_self', {
       configurable: false,
       enumerable: false,
       writable: false,
       value: self
-    });
-    // Two elements created in two different places should be considered
+    }); // Two elements created in two different places should be considered
     // equal for testing purposes and therefore we hide it from enumeration.
+
     Object.defineProperty(element, '_source', {
       configurable: false,
       enumerable: false,
       writable: false,
       value: source
     });
+
     if (Object.freeze) {
       Object.freeze(element.props);
       Object.freeze(element);
@@ -8449,17 +8699,87 @@ var ReactElement = function (type, key, ref, self, source, owner, props) {
 
   return element;
 };
+/**
+ * https://github.com/reactjs/rfcs/pull/107
+ * @param {*} type
+ * @param {object} props
+ * @param {string} key
+ */
 
+
+
+/**
+ * https://github.com/reactjs/rfcs/pull/107
+ * @param {*} type
+ * @param {object} props
+ * @param {string} key
+ */
+
+function jsxDEV(type, config, maybeKey, source, self) {
+  var propName; // Reserved names are extracted
+
+  var props = {};
+  var key = null;
+  var ref = null; // Currently, key can be spread in as a prop. This causes a potential
+  // issue if key is also explicitly declared (ie. <div {...props} key="Hi" />
+  // or <div key="Hi" {...props} /> ). We want to deprecate key spread,
+  // but as an intermediary step, we will use jsxDEV for everything except
+  // <div {...props} key="Hi" />, because we aren't currently able to tell if
+  // key is explicitly declared to be undefined or not.
+
+  if (maybeKey !== undefined) {
+    key = '' + maybeKey;
+  }
+
+  if (hasValidKey(config)) {
+    key = '' + config.key;
+  }
+
+  if (hasValidRef(config)) {
+    ref = config.ref;
+  } // Remaining properties are added to a new props object
+
+
+  for (propName in config) {
+    if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      props[propName] = config[propName];
+    }
+  } // Resolve default props
+
+
+  if (type && type.defaultProps) {
+    var defaultProps = type.defaultProps;
+
+    for (propName in defaultProps) {
+      if (props[propName] === undefined) {
+        props[propName] = defaultProps[propName];
+      }
+    }
+  }
+
+  if (key || ref) {
+    var displayName = typeof type === 'function' ? type.displayName || type.name || 'Unknown' : type;
+
+    if (key) {
+      defineKeyPropWarningGetter(props, displayName);
+    }
+
+    if (ref) {
+      defineRefPropWarningGetter(props, displayName);
+    }
+  }
+
+  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+}
 /**
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
+
 function createElement(type, config, children) {
-  var propName = void 0;
+  var propName; // Reserved names are extracted
 
-  // Reserved names are extracted
   var props = {};
-
   var key = null;
   var ref = null;
   var self = null;
@@ -8469,61 +8789,70 @@ function createElement(type, config, children) {
     if (hasValidRef(config)) {
       ref = config.ref;
     }
+
     if (hasValidKey(config)) {
       key = '' + config.key;
     }
 
     self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source;
-    // Remaining properties are added to a new props object
+    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
+
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
         props[propName] = config[propName];
       }
     }
-  }
-
-  // Children can be more than one argument, and those are transferred onto
+  } // Children can be more than one argument, and those are transferred onto
   // the newly allocated props object.
+
+
   var childrenLength = arguments.length - 2;
+
   if (childrenLength === 1) {
     props.children = children;
   } else if (childrenLength > 1) {
     var childArray = Array(childrenLength);
+
     for (var i = 0; i < childrenLength; i++) {
       childArray[i] = arguments[i + 2];
     }
+
     {
       if (Object.freeze) {
         Object.freeze(childArray);
       }
     }
-    props.children = childArray;
-  }
 
-  // Resolve default props
+    props.children = childArray;
+  } // Resolve default props
+
+
   if (type && type.defaultProps) {
     var defaultProps = type.defaultProps;
+
     for (propName in defaultProps) {
       if (props[propName] === undefined) {
         props[propName] = defaultProps[propName];
       }
     }
   }
+
   {
     if (key || ref) {
       var displayName = typeof type === 'function' ? type.displayName || type.name || 'Unknown' : type;
+
       if (key) {
         defineKeyPropWarningGetter(props, displayName);
       }
+
       if (ref) {
         defineRefPropWarningGetter(props, displayName);
       }
     }
   }
+
   return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
 }
-
 /**
  * Return a function that produces ReactElements of a given type.
  * See https://reactjs.org/docs/react-api.html#createfactory
@@ -8532,33 +8861,34 @@ function createElement(type, config, children) {
 
 function cloneAndReplaceKey(oldElement, newKey) {
   var newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
-
   return newElement;
 }
-
 /**
  * Clone and return a new ReactElement using element as the starting point.
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
+
 function cloneElement(element, config, children) {
-  !!(element === null || element === undefined) ? invariant(false, 'React.cloneElement(...): The argument must be a React element, but you passed %s.', element) : void 0;
+  if (!!(element === null || element === undefined)) {
+    {
+      throw Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
+    }
+  }
 
-  var propName = void 0;
+  var propName; // Original props are copied
 
-  // Original props are copied
-  var props = _assign({}, element.props);
+  var props = _assign({}, element.props); // Reserved names are extracted
 
-  // Reserved names are extracted
+
   var key = element.key;
-  var ref = element.ref;
-  // Self is preserved since the owner is preserved.
-  var self = element._self;
-  // Source is preserved since cloneElement is unlikely to be targeted by a
+  var ref = element.ref; // Self is preserved since the owner is preserved.
+
+  var self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
   // transpiler, and the original source is probably a better indicator of the
   // true owner.
-  var source = element._source;
 
-  // Owner will be preserved, unless ref is overridden
+  var source = element._source; // Owner will be preserved, unless ref is overridden
+
   var owner = element._owner;
 
   if (config != null) {
@@ -8567,15 +8897,18 @@ function cloneElement(element, config, children) {
       ref = config.ref;
       owner = ReactCurrentOwner.current;
     }
+
     if (hasValidKey(config)) {
       key = '' + config.key;
-    }
+    } // Remaining properties override existing props
 
-    // Remaining properties override existing props
-    var defaultProps = void 0;
+
+    var defaultProps;
+
     if (element.type && element.type.defaultProps) {
       defaultProps = element.type.defaultProps;
     }
+
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
         if (config[propName] === undefined && defaultProps !== undefined) {
@@ -8586,24 +8919,26 @@ function cloneElement(element, config, children) {
         }
       }
     }
-  }
-
-  // Children can be more than one argument, and those are transferred onto
+  } // Children can be more than one argument, and those are transferred onto
   // the newly allocated props object.
+
+
   var childrenLength = arguments.length - 2;
+
   if (childrenLength === 1) {
     props.children = children;
   } else if (childrenLength > 1) {
     var childArray = Array(childrenLength);
+
     for (var i = 0; i < childrenLength; i++) {
       childArray[i] = arguments[i + 2];
     }
+
     props.children = childArray;
   }
 
   return ReactElement(element.type, key, ref, self, source, owner, props);
 }
-
 /**
  * Verifies the object is a ReactElement.
  * See https://reactjs.org/docs/react-api.html#isvalidelement
@@ -8611,19 +8946,20 @@ function cloneElement(element, config, children) {
  * @return {boolean} True if `object` is a ReactElement.
  * @final
  */
+
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
 
 var SEPARATOR = '.';
 var SUBSEPARATOR = ':';
-
 /**
  * Escape and wrap key so it is safe to use as a reactid
  *
  * @param {string} key to be escaped.
  * @return {string} the escaped key.
  */
+
 function escape(key) {
   var escapeRegex = /[=:]/g;
   var escaperLookup = {
@@ -8633,24 +8969,24 @@ function escape(key) {
   var escapedString = ('' + key).replace(escapeRegex, function (match) {
     return escaperLookup[match];
   });
-
   return '$' + escapedString;
 }
-
 /**
  * TODO: Test that a single child and an array with one item have the same key
  * pattern.
  */
 
-var didWarnAboutMaps = false;
 
+var didWarnAboutMaps = false;
 var userProvidedKeyEscapeRegex = /\/+/g;
+
 function escapeUserProvidedKey(text) {
   return ('' + text).replace(userProvidedKeyEscapeRegex, '$&/');
 }
 
 var POOL_SIZE = 10;
 var traverseContextPool = [];
+
 function getPooledTraverseContext(mapResult, keyPrefix, mapFunction, mapContext) {
   if (traverseContextPool.length) {
     var traverseContext = traverseContextPool.pop();
@@ -8677,11 +9013,11 @@ function releaseTraverseContext(traverseContext) {
   traverseContext.func = null;
   traverseContext.context = null;
   traverseContext.count = 0;
+
   if (traverseContextPool.length < POOL_SIZE) {
     traverseContextPool.push(traverseContext);
   }
 }
-
 /**
  * @param {?*} children Children tree container.
  * @param {!string} nameSoFar Name of the key path so far.
@@ -8690,6 +9026,8 @@ function releaseTraverseContext(traverseContext) {
  * process.
  * @return {!number} The number of children in this subtree.
  */
+
+
 function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext) {
   var type = typeof children;
 
@@ -8708,26 +9046,28 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
       case 'number':
         invokeCallback = true;
         break;
+
       case 'object':
         switch (children.$$typeof) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
         }
+
     }
   }
 
   if (invokeCallback) {
-    callback(traverseContext, children,
-    // If it's the only child, treat the name as if it was wrapped in an array
+    callback(traverseContext, children, // If it's the only child, treat the name as if it was wrapped in an array
     // so that it's consistent if the number of children grows.
     nameSoFar === '' ? SEPARATOR + getComponentKey(children, 0) : nameSoFar);
     return 1;
   }
 
-  var child = void 0;
-  var nextName = void 0;
+  var child;
+  var nextName;
   var subtreeCount = 0; // Count of children found in the current subtree.
+
   var nextNamePrefix = nameSoFar === '' ? SEPARATOR : nameSoFar + SUBSEPARATOR;
 
   if (Array.isArray(children)) {
@@ -8738,6 +9078,7 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
     }
   } else {
     var iteratorFn = getIteratorFn(children);
+
     if (typeof iteratorFn === 'function') {
       {
         // Warn about using Maps as children
@@ -8748,8 +9089,9 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
       }
 
       var iterator = iteratorFn.call(children);
-      var step = void 0;
+      var step;
       var ii = 0;
+
       while (!(step = iterator.next()).done) {
         child = step.value;
         nextName = nextNamePrefix + getComponentKey(child, ii++);
@@ -8757,17 +9099,23 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
       }
     } else if (type === 'object') {
       var addendum = '';
+
       {
         addendum = ' If you meant to render a collection of children, use an array ' + 'instead.' + ReactDebugCurrentFrame.getStackAddendum();
       }
+
       var childrenString = '' + children;
-      invariant(false, 'Objects are not valid as a React child (found: %s).%s', childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString, addendum);
+
+      {
+        {
+          throw Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + ")." + addendum);
+        }
+      }
     }
   }
 
   return subtreeCount;
 }
-
 /**
  * Traverses children that are typically specified as `props.children`, but
  * might also be specified through attributes:
@@ -8784,6 +9132,8 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
  * @param {?*} traverseContext Context for traversal.
  * @return {!number} The number of children in this subtree.
  */
+
+
 function traverseAllChildren(children, callback, traverseContext) {
   if (children == null) {
     return 0;
@@ -8791,7 +9141,6 @@ function traverseAllChildren(children, callback, traverseContext) {
 
   return traverseAllChildrenImpl(children, '', callback, traverseContext);
 }
-
 /**
  * Generate a key string that identifies a component within a set.
  *
@@ -8799,24 +9148,25 @@ function traverseAllChildren(children, callback, traverseContext) {
  * @param {number} index Index that is used if a manual key is not provided.
  * @return {string}
  */
+
+
 function getComponentKey(component, index) {
   // Do some typechecking here since we call this blindly. We want to ensure
   // that we don't block potential future ES APIs.
   if (typeof component === 'object' && component !== null && component.key != null) {
     // Explicit key
     return escape(component.key);
-  }
-  // Implicit key determined by the index in the set
+  } // Implicit key determined by the index in the set
+
+
   return index.toString(36);
 }
 
 function forEachSingleChild(bookKeeping, child, name) {
   var func = bookKeeping.func,
       context = bookKeeping.context;
-
   func.call(context, child, bookKeeping.count++);
 }
-
 /**
  * Iterates through children that are typically specified as `props.children`.
  *
@@ -8829,10 +9179,13 @@ function forEachSingleChild(bookKeeping, child, name) {
  * @param {function(*, int)} forEachFunc
  * @param {*} forEachContext Context for forEachContext.
  */
+
+
 function forEachChildren(children, forEachFunc, forEachContext) {
   if (children == null) {
     return children;
   }
+
   var traverseContext = getPooledTraverseContext(null, null, forEachFunc, forEachContext);
   traverseAllChildren(children, forEachSingleChild, traverseContext);
   releaseTraverseContext(traverseContext);
@@ -8843,34 +9196,34 @@ function mapSingleChildIntoContext(bookKeeping, child, childKey) {
       keyPrefix = bookKeeping.keyPrefix,
       func = bookKeeping.func,
       context = bookKeeping.context;
-
-
   var mappedChild = func.call(context, child, bookKeeping.count++);
+
   if (Array.isArray(mappedChild)) {
     mapIntoWithKeyPrefixInternal(mappedChild, result, childKey, function (c) {
       return c;
     });
   } else if (mappedChild != null) {
     if (isValidElement(mappedChild)) {
-      mappedChild = cloneAndReplaceKey(mappedChild,
-      // Keep both the (mapped) and old keys if they differ, just as
+      mappedChild = cloneAndReplaceKey(mappedChild, // Keep both the (mapped) and old keys if they differ, just as
       // traverseAllChildren used to do for objects as children
       keyPrefix + (mappedChild.key && (!child || child.key !== mappedChild.key) ? escapeUserProvidedKey(mappedChild.key) + '/' : '') + childKey);
     }
+
     result.push(mappedChild);
   }
 }
 
 function mapIntoWithKeyPrefixInternal(children, array, prefix, func, context) {
   var escapedPrefix = '';
+
   if (prefix != null) {
     escapedPrefix = escapeUserProvidedKey(prefix) + '/';
   }
+
   var traverseContext = getPooledTraverseContext(array, escapedPrefix, func, context);
   traverseAllChildren(children, mapSingleChildIntoContext, traverseContext);
   releaseTraverseContext(traverseContext);
 }
-
 /**
  * Maps children that are typically specified as `props.children`.
  *
@@ -8884,15 +9237,17 @@ function mapIntoWithKeyPrefixInternal(children, array, prefix, func, context) {
  * @param {*} context Context for mapFunction.
  * @return {object} Object containing the ordered map of results.
  */
+
+
 function mapChildren(children, func, context) {
   if (children == null) {
     return children;
   }
+
   var result = [];
   mapIntoWithKeyPrefixInternal(children, result, null, func, context);
   return result;
 }
-
 /**
  * Count the number of children that are typically specified as
  * `props.children`.
@@ -8902,18 +9257,21 @@ function mapChildren(children, func, context) {
  * @param {?*} children Children tree container.
  * @return {number} The number of children.
  */
+
+
 function countChildren(children) {
   return traverseAllChildren(children, function () {
     return null;
   }, null);
 }
-
 /**
  * Flatten a children object (typically specified as `props.children`) and
  * return an array with appropriately re-keyed children.
  *
  * See https://reactjs.org/docs/react-api.html#reactchildrentoarray
  */
+
+
 function toArray(children) {
   var result = [];
   mapIntoWithKeyPrefixInternal(children, result, null, function (child) {
@@ -8921,7 +9279,6 @@ function toArray(children) {
   });
   return result;
 }
-
 /**
  * Returns the first child in a collection of children and verifies that there
  * is only one child in the collection.
@@ -8936,8 +9293,15 @@ function toArray(children) {
  * @return {ReactElement} The first and only `ReactElement` contained in the
  * structure.
  */
+
+
 function onlyChild(children) {
-  !isValidElement(children) ? invariant(false, 'React.Children.only expected to receive a single React element child.') : void 0;
+  if (!isValidElement(children)) {
+    {
+      throw Error("React.Children.only expected to receive a single React element child.");
+    }
+  }
+
   return children;
 }
 
@@ -8967,12 +9331,10 @@ function createContext(defaultValue, calculateChangedBits) {
     Provider: null,
     Consumer: null
   };
-
   context.Provider = {
     $$typeof: REACT_PROVIDER_TYPE,
     _context: context
   };
-
   var hasWarnedAboutUsingNestedContextConsumers = false;
   var hasWarnedAboutUsingConsumerProvider = false;
 
@@ -8984,8 +9346,8 @@ function createContext(defaultValue, calculateChangedBits) {
       $$typeof: REACT_CONTEXT_TYPE,
       _context: context,
       _calculateChangedBits: context._calculateChangedBits
-    };
-    // $FlowFixMe: Flow complains about not setting a value, which is intentional here
+    }; // $FlowFixMe: Flow complains about not setting a value, which is intentional here
+
     Object.defineProperties(Consumer, {
       Provider: {
         get: function () {
@@ -8993,6 +9355,7 @@ function createContext(defaultValue, calculateChangedBits) {
             hasWarnedAboutUsingConsumerProvider = true;
             warning$1(false, 'Rendering <Context.Consumer.Provider> is not supported and will be removed in ' + 'a future major release. Did you mean to render <Context.Provider> instead?');
           }
+
           return context.Provider;
         },
         set: function (_Provider) {
@@ -9029,11 +9392,12 @@ function createContext(defaultValue, calculateChangedBits) {
             hasWarnedAboutUsingNestedContextConsumers = true;
             warning$1(false, 'Rendering <Context.Consumer.Consumer> is not supported and will be removed in ' + 'a future major release. Did you mean to render <Context.Consumer> instead?');
           }
+
           return context.Consumer;
         }
       }
-    });
-    // $FlowFixMe: Flow complains about missing properties because it doesn't understand defineProperty
+    }); // $FlowFixMe: Flow complains about missing properties because it doesn't understand defineProperty
+
     context.Consumer = Consumer;
   }
 
@@ -9056,8 +9420,8 @@ function lazy(ctor) {
 
   {
     // In production, this would just set it on the object.
-    var defaultProps = void 0;
-    var propTypes = void 0;
+    var defaultProps;
+    var propTypes;
     Object.defineProperties(lazyType, {
       defaultProps: {
         configurable: true,
@@ -9066,8 +9430,8 @@ function lazy(ctor) {
         },
         set: function (newDefaultProps) {
           warning$1(false, 'React.lazy(...): It is not supported to assign `defaultProps` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
-          defaultProps = newDefaultProps;
-          // Match production behavior more closely:
+          defaultProps = newDefaultProps; // Match production behavior more closely:
+
           Object.defineProperty(lazyType, 'defaultProps', {
             enumerable: true
           });
@@ -9080,8 +9444,8 @@ function lazy(ctor) {
         },
         set: function (newPropTypes) {
           warning$1(false, 'React.lazy(...): It is not supported to assign `propTypes` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
-          propTypes = newPropTypes;
-          // Match production behavior more closely:
+          propTypes = newPropTypes; // Match production behavior more closely:
+
           Object.defineProperty(lazyType, 'propTypes', {
             enumerable: true
           });
@@ -9100,8 +9464,7 @@ function forwardRef(render) {
     } else if (typeof render !== 'function') {
       warningWithoutStack$1(false, 'forwardRef requires a render function but was given %s.', render === null ? 'null' : typeof render);
     } else {
-      !(
-      // Do not warn for 0 arguments because it could be due to usage of the 'arguments' object
+      !( // Do not warn for 0 arguments because it could be due to usage of the 'arguments' object
       render.length === 0 || render.length === 2) ? warningWithoutStack$1(false, 'forwardRef render functions accept exactly two parameters: props and ref. %s', render.length === 1 ? 'Did you forget to use the ref parameter?' : 'Any additional parameter will be undefined.') : void 0;
     }
 
@@ -9117,9 +9480,8 @@ function forwardRef(render) {
 }
 
 function isValidElementType(type) {
-  return typeof type === 'string' || typeof type === 'function' ||
-  // Note: its typeof might be other than 'symbol' or 'number' if it's a polyfill.
-  type === REACT_FRAGMENT_TYPE || type === REACT_CONCURRENT_MODE_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || typeof type === 'object' && type !== null && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_PROVIDER_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE);
+  return typeof type === 'string' || typeof type === 'function' || // Note: its typeof might be other than 'symbol' or 'number' if it's a polyfill.
+  type === REACT_FRAGMENT_TYPE || type === REACT_CONCURRENT_MODE_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || typeof type === 'object' && type !== null && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_PROVIDER_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || type.$$typeof === REACT_FUNDAMENTAL_TYPE || type.$$typeof === REACT_RESPONDER_TYPE || type.$$typeof === REACT_SCOPE_TYPE);
 }
 
 function memo(type, compare) {
@@ -9128,6 +9490,7 @@ function memo(type, compare) {
       warningWithoutStack$1(false, 'memo: The first argument must be a component. Instead ' + 'received: %s', type === null ? 'null' : typeof type);
     }
   }
+
   return {
     $$typeof: REACT_MEMO_TYPE,
     type: type,
@@ -9137,20 +9500,26 @@ function memo(type, compare) {
 
 function resolveDispatcher() {
   var dispatcher = ReactCurrentDispatcher.current;
-  !(dispatcher !== null) ? invariant(false, 'Hooks can only be called inside the body of a function component. (https://fb.me/react-invalid-hook-call)') : void 0;
+
+  if (!(dispatcher !== null)) {
+    {
+      throw Error("Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://fb.me/react-invalid-hook-call for tips about how to debug and fix this problem.");
+    }
+  }
+
   return dispatcher;
 }
 
 function useContext(Context, unstable_observedBits) {
   var dispatcher = resolveDispatcher();
-  {
-    !(unstable_observedBits === undefined) ? warning$1(false, 'useContext() second argument is reserved for future ' + 'use in React. Passing it is not supported. ' + 'You passed: %s.%s', unstable_observedBits, typeof unstable_observedBits === 'number' && Array.isArray(arguments[2]) ? '\n\nDid you call array.map(useContext)? ' + 'Calling Hooks inside a loop is not supported. ' + 'Learn more at https://fb.me/rules-of-hooks' : '') : void 0;
 
-    // TODO: add a more generic warning for invalid values.
+  {
+    !(unstable_observedBits === undefined) ? warning$1(false, 'useContext() second argument is reserved for future ' + 'use in React. Passing it is not supported. ' + 'You passed: %s.%s', unstable_observedBits, typeof unstable_observedBits === 'number' && Array.isArray(arguments[2]) ? '\n\nDid you call array.map(useContext)? ' + 'Calling Hooks inside a loop is not supported. ' + 'Learn more at https://fb.me/rules-of-hooks' : '') : void 0; // TODO: add a more generic warning for invalid values.
+
     if (Context._context !== undefined) {
-      var realContext = Context._context;
-      // Don't deduplicate because this legitimately causes bugs
+      var realContext = Context._context; // Don't deduplicate because this legitimately causes bugs
       // and nobody should be using this in existing code.
+
       if (realContext.Consumer === Context) {
         warning$1(false, 'Calling useContext(Context.Consumer) is not supported, may cause bugs, and will be ' + 'removed in a future major release. Did you mean to call useContext(Context) instead?');
       } else if (realContext.Provider === Context) {
@@ -9158,53 +9527,77 @@ function useContext(Context, unstable_observedBits) {
       }
     }
   }
+
   return dispatcher.useContext(Context, unstable_observedBits);
 }
-
 function useState(initialState) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useState(initialState);
 }
-
 function useReducer(reducer, initialArg, init) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useReducer(reducer, initialArg, init);
 }
-
 function useRef(initialValue) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useRef(initialValue);
 }
-
 function useEffect(create, inputs) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useEffect(create, inputs);
 }
-
 function useLayoutEffect(create, inputs) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useLayoutEffect(create, inputs);
 }
-
 function useCallback(callback, inputs) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useCallback(callback, inputs);
 }
-
 function useMemo(create, inputs) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useMemo(create, inputs);
 }
-
 function useImperativeHandle(ref, create, inputs) {
   var dispatcher = resolveDispatcher();
   return dispatcher.useImperativeHandle(ref, create, inputs);
 }
-
 function useDebugValue(value, formatterFn) {
   {
     var dispatcher = resolveDispatcher();
     return dispatcher.useDebugValue(value, formatterFn);
+  }
+}
+var emptyObject$1 = {};
+function useResponder(responder, listenerProps) {
+  var dispatcher = resolveDispatcher();
+
+  {
+    if (responder == null || responder.$$typeof !== REACT_RESPONDER_TYPE) {
+      warning$1(false, 'useResponder: invalid first argument. Expected an event responder, but instead got %s', responder);
+      return;
+    }
+  }
+
+  return dispatcher.useResponder(responder, listenerProps || emptyObject$1);
+}
+function useTransition(config) {
+  var dispatcher = resolveDispatcher();
+  return dispatcher.useTransition(config);
+}
+function useDeferredValue(value, config) {
+  var dispatcher = resolveDispatcher();
+  return dispatcher.useDeferredValue(value, config);
+}
+
+function withSuspenseConfig(scope, config) {
+  var previousConfig = ReactCurrentBatchConfig.suspense;
+  ReactCurrentBatchConfig.suspense = config === undefined ? null : config;
+
+  try {
+    scope();
+  } finally {
+    ReactCurrentBatchConfig.suspense = previousConfig;
   }
 }
 
@@ -9214,38 +9607,50 @@ function useDebugValue(value, formatterFn) {
  * used only in DEV and could be replaced by a static type checker for languages
  * that support it.
  */
-
-var propTypesMisspellWarningShown = void 0;
+var propTypesMisspellWarningShown;
 
 {
   propTypesMisspellWarningShown = false;
 }
 
+var hasOwnProperty$1 = Object.prototype.hasOwnProperty;
+
 function getDeclarationErrorAddendum() {
   if (ReactCurrentOwner.current) {
     var name = getComponentName(ReactCurrentOwner.current.type);
+
     if (name) {
       return '\n\nCheck the render method of `' + name + '`.';
     }
   }
+
   return '';
 }
 
-function getSourceInfoErrorAddendum(elementProps) {
-  if (elementProps !== null && elementProps !== undefined && elementProps.__source !== undefined) {
-    var source = elementProps.__source;
+function getSourceInfoErrorAddendum(source) {
+  if (source !== undefined) {
     var fileName = source.fileName.replace(/^.*[\\\/]/, '');
     var lineNumber = source.lineNumber;
     return '\n\nCheck your code at ' + fileName + ':' + lineNumber + '.';
   }
+
   return '';
 }
 
+function getSourceInfoErrorAddendumForProps(elementProps) {
+  if (elementProps !== null && elementProps !== undefined) {
+    return getSourceInfoErrorAddendum(elementProps.__source);
+  }
+
+  return '';
+}
 /**
  * Warn if there's no key explicitly set on dynamic arrays of children or
  * object keys are not valid. This allows us to keep track of children between
  * updates.
  */
+
+
 var ownerHasKeyUseWarning = {};
 
 function getCurrentComponentErrorInfo(parentType) {
@@ -9253,13 +9658,14 @@ function getCurrentComponentErrorInfo(parentType) {
 
   if (!info) {
     var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
+
     if (parentName) {
-      info = '\n\nCheck the top-level render call using <' + parentName + '>.';
+      info = "\n\nCheck the top-level render call using <" + parentName + ">.";
     }
   }
+
   return info;
 }
-
 /**
  * Warn if the element doesn't have an explicit key assigned to it.
  * This element is in an array. The array could grow and shrink or be
@@ -9271,34 +9677,39 @@ function getCurrentComponentErrorInfo(parentType) {
  * @param {ReactElement} element Element that requires a key.
  * @param {*} parentType element's parent's type.
  */
+
+
 function validateExplicitKey(element, parentType) {
   if (!element._store || element._store.validated || element.key != null) {
     return;
   }
-  element._store.validated = true;
 
+  element._store.validated = true;
   var currentComponentErrorInfo = getCurrentComponentErrorInfo(parentType);
+
   if (ownerHasKeyUseWarning[currentComponentErrorInfo]) {
     return;
   }
-  ownerHasKeyUseWarning[currentComponentErrorInfo] = true;
 
-  // Usually the current owner is the offender, but if it accepts children as a
+  ownerHasKeyUseWarning[currentComponentErrorInfo] = true; // Usually the current owner is the offender, but if it accepts children as a
   // property, it may be the creator of the child that's responsible for
   // assigning it a key.
+
   var childOwner = '';
+
   if (element && element._owner && element._owner !== ReactCurrentOwner.current) {
     // Give the component that originally created this child.
-    childOwner = ' It was passed a child from ' + getComponentName(element._owner.type) + '.';
+    childOwner = " It was passed a child from " + getComponentName(element._owner.type) + ".";
   }
 
   setCurrentlyValidatingElement(element);
+
   {
     warning$1(false, 'Each child in a list should have a unique "key" prop.' + '%s%s See https://fb.me/react-warning-keys for more information.', currentComponentErrorInfo, childOwner);
   }
+
   setCurrentlyValidatingElement(null);
 }
-
 /**
  * Ensure that every element either is passed in a static location, in an
  * array with an explicit keys property defined, or in an object literal
@@ -9308,13 +9719,17 @@ function validateExplicitKey(element, parentType) {
  * @param {ReactNode} node Statically passed child of any type.
  * @param {*} parentType node's parent's type.
  */
+
+
 function validateChildKeys(node, parentType) {
   if (typeof node !== 'object') {
     return;
   }
+
   if (Array.isArray(node)) {
     for (var i = 0; i < node.length; i++) {
       var child = node[i];
+
       if (isValidElement(child)) {
         validateExplicitKey(child, parentType);
       }
@@ -9326,12 +9741,14 @@ function validateChildKeys(node, parentType) {
     }
   } else if (node) {
     var iteratorFn = getIteratorFn(node);
+
     if (typeof iteratorFn === 'function') {
       // Entry iterators used to provide implicit keys,
       // but now we print a separate warning for them later.
       if (iteratorFn !== node.entries) {
         var iterator = iteratorFn.call(node);
-        var step = void 0;
+        var step;
+
         while (!(step = iterator.next()).done) {
           if (isValidElement(step.value)) {
             validateExplicitKey(step.value, parentType);
@@ -9341,30 +9758,34 @@ function validateChildKeys(node, parentType) {
     }
   }
 }
-
 /**
  * Given an element, validate that its props follow the propTypes definition,
  * provided by the type.
  *
  * @param {ReactElement} element
  */
+
+
 function validatePropTypes(element) {
   var type = element.type;
+
   if (type === null || type === undefined || typeof type === 'string') {
     return;
   }
+
   var name = getComponentName(type);
-  var propTypes = void 0;
+  var propTypes;
+
   if (typeof type === 'function') {
     propTypes = type.propTypes;
-  } else if (typeof type === 'object' && (type.$$typeof === REACT_FORWARD_REF_TYPE ||
-  // Note: Memo only checks outer props here.
+  } else if (typeof type === 'object' && (type.$$typeof === REACT_FORWARD_REF_TYPE || // Note: Memo only checks outer props here.
   // Inner props are checked in the reconciler.
   type.$$typeof === REACT_MEMO_TYPE)) {
     propTypes = type.propTypes;
   } else {
     return;
   }
+
   if (propTypes) {
     setCurrentlyValidatingElement(element);
     checkPropTypes(propTypes, element.props, 'prop', name, ReactDebugCurrentFrame.getStackAddendum);
@@ -9373,21 +9794,24 @@ function validatePropTypes(element) {
     propTypesMisspellWarningShown = true;
     warningWithoutStack$1(false, 'Component %s declared `PropTypes` instead of `propTypes`. Did you misspell the property assignment?', name || 'Unknown');
   }
+
   if (typeof type.getDefaultProps === 'function') {
     !type.getDefaultProps.isReactClassApproved ? warningWithoutStack$1(false, 'getDefaultProps is only used on classic React.createClass ' + 'definitions. Use a static property named `defaultProps` instead.') : void 0;
   }
 }
-
 /**
  * Given a fragment, validate that it can only be provided with fragment props
  * @param {ReactElement} fragment
  */
+
+
 function validateFragmentProps(fragment) {
   setCurrentlyValidatingElement(fragment);
-
   var keys = Object.keys(fragment.props);
+
   for (var i = 0; i < keys.length; i++) {
     var key = keys[i];
+
     if (key !== 'children' && key !== 'key') {
       warning$1(false, 'Invalid prop `%s` supplied to `React.Fragment`. ' + 'React.Fragment can only have `key` and `children` props.', key);
       break;
@@ -9401,31 +9825,124 @@ function validateFragmentProps(fragment) {
   setCurrentlyValidatingElement(null);
 }
 
-function createElementWithValidation(type, props, children) {
-  var validType = isValidElementType(type);
-
-  // We warn in this case but don't throw. We expect the element creation to
+function jsxWithValidation(type, props, key, isStaticChildren, source, self) {
+  var validType = isValidElementType(type); // We warn in this case but don't throw. We expect the element creation to
   // succeed and there will likely be errors in render.
+
   if (!validType) {
     var info = '';
+
     if (type === undefined || typeof type === 'object' && type !== null && Object.keys(type).length === 0) {
       info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and named imports.";
     }
 
-    var sourceInfo = getSourceInfoErrorAddendum(props);
+    var sourceInfo = getSourceInfoErrorAddendum(source);
+
     if (sourceInfo) {
       info += sourceInfo;
     } else {
       info += getDeclarationErrorAddendum();
     }
 
-    var typeString = void 0;
+    var typeString;
+
     if (type === null) {
       typeString = 'null';
     } else if (Array.isArray(type)) {
       typeString = 'array';
     } else if (type !== undefined && type.$$typeof === REACT_ELEMENT_TYPE) {
-      typeString = '<' + (getComponentName(type.type) || 'Unknown') + ' />';
+      typeString = "<" + (getComponentName(type.type) || 'Unknown') + " />";
+      info = ' Did you accidentally export a JSX literal instead of a component?';
+    } else {
+      typeString = typeof type;
+    }
+
+    warning$1(false, 'React.jsx: type is invalid -- expected a string (for ' + 'built-in components) or a class/function (for composite ' + 'components) but got: %s.%s', typeString, info);
+  }
+
+  var element = jsxDEV(type, props, key, source, self); // The result can be nullish if a mock or a custom function is used.
+  // TODO: Drop this when these are no longer allowed as the type argument.
+
+  if (element == null) {
+    return element;
+  } // Skip key warning if the type isn't valid since our key validation logic
+  // doesn't expect a non-string/function type and can throw confusing errors.
+  // We don't want exception behavior to differ between dev and prod.
+  // (Rendering will throw with a helpful message and as soon as the type is
+  // fixed, the key warnings will appear.)
+
+
+  if (validType) {
+    var children = props.children;
+
+    if (children !== undefined) {
+      if (isStaticChildren) {
+        if (Array.isArray(children)) {
+          for (var i = 0; i < children.length; i++) {
+            validateChildKeys(children[i], type);
+          }
+
+          if (Object.freeze) {
+            Object.freeze(children);
+          }
+        } else {
+          warning$1(false, 'React.jsx: Static children should always be an array. ' + 'You are likely explicitly calling React.jsxs or React.jsxDEV. ' + 'Use the Babel transform instead.');
+        }
+      } else {
+        validateChildKeys(children, type);
+      }
+    }
+  }
+
+  if (hasOwnProperty$1.call(props, 'key')) {
+    warning$1(false, 'React.jsx: Spreading a key to JSX is a deprecated pattern. ' + 'Explicitly pass a key after spreading props in your JSX call. ' + 'E.g. <ComponentName {...props} key={key} />');
+  }
+
+  if (type === REACT_FRAGMENT_TYPE) {
+    validateFragmentProps(element);
+  } else {
+    validatePropTypes(element);
+  }
+
+  return element;
+} // These two functions exist to still get child warnings in dev
+// even with the prod transform. This means that jsxDEV is purely
+// opt-in behavior for better messages but that we won't stop
+// giving you warnings if you use production apis.
+
+function jsxWithValidationStatic(type, props, key) {
+  return jsxWithValidation(type, props, key, true);
+}
+function jsxWithValidationDynamic(type, props, key) {
+  return jsxWithValidation(type, props, key, false);
+}
+function createElementWithValidation(type, props, children) {
+  var validType = isValidElementType(type); // We warn in this case but don't throw. We expect the element creation to
+  // succeed and there will likely be errors in render.
+
+  if (!validType) {
+    var info = '';
+
+    if (type === undefined || typeof type === 'object' && type !== null && Object.keys(type).length === 0) {
+      info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and named imports.";
+    }
+
+    var sourceInfo = getSourceInfoErrorAddendumForProps(props);
+
+    if (sourceInfo) {
+      info += sourceInfo;
+    } else {
+      info += getDeclarationErrorAddendum();
+    }
+
+    var typeString;
+
+    if (type === null) {
+      typeString = 'null';
+    } else if (Array.isArray(type)) {
+      typeString = 'array';
+    } else if (type !== undefined && type.$$typeof === REACT_ELEMENT_TYPE) {
+      typeString = "<" + (getComponentName(type.type) || 'Unknown') + " />";
       info = ' Did you accidentally export a JSX literal instead of a component?';
     } else {
       typeString = typeof type;
@@ -9434,19 +9951,18 @@ function createElementWithValidation(type, props, children) {
     warning$1(false, 'React.createElement: type is invalid -- expected a string (for ' + 'built-in components) or a class/function (for composite ' + 'components) but got: %s.%s', typeString, info);
   }
 
-  var element = createElement.apply(this, arguments);
-
-  // The result can be nullish if a mock or a custom function is used.
+  var element = createElement.apply(this, arguments); // The result can be nullish if a mock or a custom function is used.
   // TODO: Drop this when these are no longer allowed as the type argument.
+
   if (element == null) {
     return element;
-  }
-
-  // Skip key warning if the type isn't valid since our key validation logic
+  } // Skip key warning if the type isn't valid since our key validation logic
   // doesn't expect a non-string/function type and can throw confusing errors.
   // We don't want exception behavior to differ between dev and prod.
   // (Rendering will throw with a helpful message and as soon as the type is
   // fixed, the key warnings will appear.)
+
+
   if (validType) {
     for (var i = 2; i < arguments.length; i++) {
       validateChildKeys(arguments[i], type);
@@ -9461,16 +9977,15 @@ function createElementWithValidation(type, props, children) {
 
   return element;
 }
-
 function createFactoryWithValidation(type) {
   var validatedFactory = createElementWithValidation.bind(null, type);
-  validatedFactory.type = type;
-  // Legacy hook: remove it
+  validatedFactory.type = type; // Legacy hook: remove it
+
   {
     Object.defineProperty(validatedFactory, 'type', {
       enumerable: false,
       get: function () {
-        lowPriorityWarning$1(false, 'Factory.type is deprecated. Access the class directly ' + 'before passing it to createFactory.');
+        lowPriorityWarningWithoutStack$1(false, 'Factory.type is deprecated. Access the class directly ' + 'before passing it to createFactory.');
         Object.defineProperty(this, 'type', {
           value: type
         });
@@ -9481,54 +9996,157 @@ function createFactoryWithValidation(type) {
 
   return validatedFactory;
 }
-
 function cloneElementWithValidation(element, props, children) {
   var newElement = cloneElement.apply(this, arguments);
+
   for (var i = 2; i < arguments.length; i++) {
     validateChildKeys(arguments[i], newElement.type);
   }
+
   validatePropTypes(newElement);
   return newElement;
 }
 
-// Helps identify side effects in begin-phase lifecycle hooks and setState reducers:
+var hasBadMapPolyfill;
 
+{
+  hasBadMapPolyfill = false;
 
-// In some cases, StrictMode should also double-render lifecycles.
-// This can be confusing for tests though,
-// And it can be bad for performance in production.
-// This feature flag can be used to control the behavior:
+  try {
+    var frozenObject = Object.freeze({});
+    var testMap = new Map([[frozenObject, null]]);
+    var testSet = new Set([frozenObject]); // This is necessary for Rollup to not consider these unused.
+    // https://github.com/rollup/rollup/issues/1771
+    // TODO: we can remove these if Rollup fixes the bug.
 
+    testMap.set(0, 0);
+    testSet.add(0);
+  } catch (e) {
+    // TODO: Consider warning about bad polyfills
+    hasBadMapPolyfill = true;
+  }
+}
 
-// To preserve the "Pause on caught exceptions" behavior of the debugger, we
+function createFundamentalComponent(impl) {
+  // We use responder as a Map key later on. When we have a bad
+  // polyfill, then we can't use it as a key as the polyfill tries
+  // to add a property to the object.
+  if ( true && !hasBadMapPolyfill) {
+    Object.freeze(impl);
+  }
+
+  var fundamantalComponent = {
+    $$typeof: REACT_FUNDAMENTAL_TYPE,
+    impl: impl
+  };
+
+  {
+    Object.freeze(fundamantalComponent);
+  }
+
+  return fundamantalComponent;
+}
+
+function createEventResponder(displayName, responderConfig) {
+  var getInitialState = responderConfig.getInitialState,
+      onEvent = responderConfig.onEvent,
+      onMount = responderConfig.onMount,
+      onUnmount = responderConfig.onUnmount,
+      onRootEvent = responderConfig.onRootEvent,
+      rootEventTypes = responderConfig.rootEventTypes,
+      targetEventTypes = responderConfig.targetEventTypes,
+      targetPortalPropagation = responderConfig.targetPortalPropagation;
+  var eventResponder = {
+    $$typeof: REACT_RESPONDER_TYPE,
+    displayName: displayName,
+    getInitialState: getInitialState || null,
+    onEvent: onEvent || null,
+    onMount: onMount || null,
+    onRootEvent: onRootEvent || null,
+    onUnmount: onUnmount || null,
+    rootEventTypes: rootEventTypes || null,
+    targetEventTypes: targetEventTypes || null,
+    targetPortalPropagation: targetPortalPropagation || false
+  }; // We use responder as a Map key later on. When we have a bad
+  // polyfill, then we can't use it as a key as the polyfill tries
+  // to add a property to the object.
+
+  if ( true && !hasBadMapPolyfill) {
+    Object.freeze(eventResponder);
+  }
+
+  return eventResponder;
+}
+
+function createScope() {
+  var scopeComponent = {
+    $$typeof: REACT_SCOPE_TYPE
+  };
+
+  {
+    Object.freeze(scopeComponent);
+  }
+
+  return scopeComponent;
+}
+
+// Helps identify side effects in render-phase lifecycle hooks and setState
+// reducers by double invoking them in Strict Mode.
+
+ // To preserve the "Pause on caught exceptions" behavior of the debugger, we
 // replay the begin phase of a failed component inside invokeGuardedCallback.
 
+ // Warn about deprecated, async-unsafe lifecycles; relates to RFC #6:
 
-// Warn about deprecated, async-unsafe lifecycles; relates to RFC #6:
+ // Gather advanced timing metrics for Profiler subtrees.
 
+ // Trace which interactions trigger each commit.
 
-// Gather advanced timing metrics for Profiler subtrees.
-
-
-// Trace which interactions trigger each commit.
-
-
-// Only used in www builds.
- // TODO: true? Here it might just be false.
-
-// Only used in www builds.
+ // SSR experiments
 
 
-// Only used in www builds.
+ // Only used in www builds.
 
+ // Only used in www builds.
 
-// React Fire: prevent the value and checked attributes from syncing
+ // Disable javascript: URL strings in href for XSS protection.
+
+ // React Fire: prevent the value and checked attributes from syncing
 // with their related DOM properties
 
-
-// These APIs will no longer be "unstable" in the upcoming 16.7 release,
+ // These APIs will no longer be "unstable" in the upcoming 16.7 release,
 // Control this behavior with a flag to support 16.6 minor releases in the meanwhile.
-var enableStableConcurrentModeAPIs = false;
+
+var exposeConcurrentModeAPIs = false;
+ // Experimental React Flare event system and event components support.
+
+var enableFlareAPI = false; // Experimental Host Component support.
+
+var enableFundamentalAPI = false; // Experimental Scope support.
+
+var enableScopeAPI = false; // New API for JSX transforms to target - https://github.com/reactjs/rfcs/pull/107
+
+var enableJSXTransformAPI = false; // We will enforce mocking scheduler with scheduler/unstable_mock at some point. (v17?)
+// Till then, we warn about the missing mock, but still fallback to a legacy mode compatible version
+
+ // For tests, we flush suspense fallbacks in an act scope;
+// *except* in some of our own tests, where we test incremental loading states.
+
+ // Add a callback property to suspense to notify which promises are currently
+// in the update queue. This allows reporting and tracing of what is causing
+// the user to see a loading state.
+// Also allows hydration callbacks to fire when a dehydrated boundary gets
+// hydrated or deleted.
+
+ // Part of the simplification of React.createElement so we can eventually move
+// from React.createElement to React.jsx
+// https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md
+
+
+
+
+
+ // Flag to turn event.target and event.currentTarget in ReactNative from a reactTag to a component instance
 
 var React = {
   Children: {
@@ -9538,16 +10156,13 @@ var React = {
     toArray: toArray,
     only: onlyChild
   },
-
   createRef: createRef,
   Component: Component,
   PureComponent: PureComponent,
-
   createContext: createContext,
   forwardRef: forwardRef,
   lazy: lazy,
   memo: memo,
-
   useCallback: useCallback,
   useContext: useContext,
   useEffect: useEffect,
@@ -9558,34 +10173,48 @@ var React = {
   useReducer: useReducer,
   useRef: useRef,
   useState: useState,
-
   Fragment: REACT_FRAGMENT_TYPE,
+  Profiler: REACT_PROFILER_TYPE,
   StrictMode: REACT_STRICT_MODE_TYPE,
   Suspense: REACT_SUSPENSE_TYPE,
-
   createElement: createElementWithValidation,
   cloneElement: cloneElementWithValidation,
   createFactory: createFactoryWithValidation,
   isValidElement: isValidElement,
-
   version: ReactVersion,
-
-  unstable_ConcurrentMode: REACT_CONCURRENT_MODE_TYPE,
-  unstable_Profiler: REACT_PROFILER_TYPE,
-
   __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: ReactSharedInternals
 };
 
-// Note: some APIs are added with feature flags.
+if (exposeConcurrentModeAPIs) {
+  React.useTransition = useTransition;
+  React.useDeferredValue = useDeferredValue;
+  React.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+  React.unstable_withSuspenseConfig = withSuspenseConfig;
+}
+
+if (enableFlareAPI) {
+  React.unstable_useResponder = useResponder;
+  React.unstable_createResponder = createEventResponder;
+}
+
+if (enableFundamentalAPI) {
+  React.unstable_createFundamental = createFundamentalComponent;
+}
+
+if (enableScopeAPI) {
+  React.unstable_createScope = createScope;
+} // Note: some APIs are added with feature flags.
 // Make sure that stable builds for open source
 // don't modify the React object to avoid deopts.
 // Also let's not expose their names in stable builds.
 
-if (enableStableConcurrentModeAPIs) {
-  React.ConcurrentMode = REACT_CONCURRENT_MODE_TYPE;
-  React.Profiler = REACT_PROFILER_TYPE;
-  React.unstable_ConcurrentMode = undefined;
-  React.unstable_Profiler = undefined;
+
+if (enableJSXTransformAPI) {
+  {
+    React.jsxDEV = jsxWithValidation;
+    React.jsx = jsxWithValidationDynamic;
+    React.jsxs = jsxWithValidationStatic;
+  }
 }
 
 
@@ -9598,6 +10227,8 @@ var React$3 = ( React$2 && React ) || React$2;
 
 // TODO: decide on the top-level export form.
 // This is hacky but makes it work with both Rollup and Jest.
+
+
 var react = React$3.default || React$3;
 
 module.exports = react;

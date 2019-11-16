@@ -63,9 +63,13 @@ export default function() {
   }
 
   // Set state
-  state.colors = getColors(layers);
-  state.fontSizes = getFontSizes(textLayers);
-  state.fontFamilies = getFontFamilies(textLayers);
+  if (layers) {
+    state.colors = getColors(layers);
+    state.fontSizes = getFontSizes(textLayers);
+    state.fontFamilies = getFontFamilies(textLayers);
+  } else {
+    sketch.UI.message("No layers found");
+  }
 
   return state;
 }

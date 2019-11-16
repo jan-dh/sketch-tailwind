@@ -24,28 +24,28 @@
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.3.3",
-    "@skpm/builder": "^0.5.11",
+    "@babel/plugin-proposal-class-properties": "^7.7.0",
+    "@skpm/builder": "^0.5.16",
     "@skpm/extract-loader": "^2.0.2",
     "babel-preset-react": "^6.24.1",
     "css-loader": "^1.0.1",
-    "eslint": "^5.14.1",
-    "eslint-config-airbnb-base": "^13.1.0",
-    "eslint-loader": "^2.1.2",
-    "eslint-plugin-import": "^2.16.0",
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb-base": "^13.2.0",
+    "eslint-loader": "^2.2.1",
+    "eslint-plugin-import": "^2.18.2",
     "html-loader": "^0.5.1",
-    "prism-react-renderer": "^0.1.5",
+    "prism-react-renderer": "^0.1.7",
     "prop-types": "^15.7.2",
-    "react": "^16.8.3",
-    "react-dom": "^16.8.3",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
     "react-router-dom": "^4.3.1"
   },
   "resources": [
     "resources/**/*.js"
   ],
   "dependencies": {
-    "@skpm/fs": "^0.2.4",
-    "sketch-module-web-view": "^2.1.5",
+    "@skpm/fs": "^0.2.5",
+    "sketch-module-web-view": "^2.1.7",
     "util": "^0.11.1"
   },
   "author": "Jan <jan.dhollander84@gmail.com>"
