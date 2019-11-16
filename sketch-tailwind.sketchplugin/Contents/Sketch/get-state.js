@@ -729,21 +729,26 @@ __webpack_require__.r(__webpack_exports__);
 
 /* harmony default export */ __webpack_exports__["default"] = (function () {
   const doc = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.fromNative(context.document);
-  const layers = doc.sharedLayerStyles();
-  const textLayers = doc.sharedTextStyles();
+  const layers = doc.sharedLayerStyles;
+  const textLayers = doc.sharedTextStyles;
   const state = {}; // Get colors
 
   function getColors(layers) {
     let colors = [];
     Object.values(layers).forEach(($layer, i) => {
-      const color = {}; // Name
+      // Check if color is defined
+      const testForColor = $layer && $layer.style && $layer.style.fills[0] && $layer.style.fills[0].color;
 
-      color.name = Object(_helpers__WEBPACK_IMPORTED_MODULE_1__["getLastPart"])($layer.name);
-      const hex = $layer.style.fills[0].color; // Clean hex
+      if ($layer.constructor.name != "Function" && testForColor !== undefined) {
+        const color = {}; // Name
 
-      color.hex = hex.substr(0, 7); // Add color
+        color.name = Object(_helpers__WEBPACK_IMPORTED_MODULE_1__["getLastPart"])($layer.name); // Clean hex
 
-      colors[i] = color;
+        const hex = $layer.style.fills[0].color;
+        color.hex = hex.substr(0, 7); // Add color
+
+        colors[i] = color;
+      }
     });
     return colors;
   } // Get font family
@@ -772,15 +777,14 @@ __webpack_require__.r(__webpack_exports__);
   } // Set state
 
 
-  if (layers) {
+  if (layers.length > 0) {
     state.colors = getColors(layers);
     state.fontSizes = getFontSizes(textLayers);
     state.fontFamilies = getFontFamilies(textLayers);
+    return state;
   } else {
     sketch__WEBPACK_IMPORTED_MODULE_0___default.a.UI.message("No layers found");
   }
-
-  return state;
 });
 
 /***/ }),
@@ -796,8 +800,8 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getLastPart", function() { return getLastPart; });
 function getLastPart(name) {
-  if (name.indexOf('/') !== -1) {
-    name = name.substr(name.lastIndexOf('/') + 1);
+  if (name.indexOf("/") !== -1) {
+    name = name.substr(name.lastIndexOf("/") + 1);
   }
 
   return name.toLowerCase();

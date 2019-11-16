@@ -5,22 +5,30 @@ import util from "util";
 
 export default function() {
   const doc = sketch.fromNative(context.document);
-  const layers = doc.sharedLayerStyles();
-  const textLayers = doc.sharedTextStyles();
+  const layers = doc.sharedLayerStyles;
+  const textLayers = doc.sharedTextStyles;
   const state = {};
 
   // Get colors
   function getColors(layers) {
     let colors = [];
     Object.values(layers).forEach(($layer, i) => {
-      const color = {};
-      // Name
-      color.name = getLastPart($layer.name);
-      const hex = $layer.style.fills[0].color;
-      // Clean hex
-      color.hex = hex.substr(0, 7);
-      // Add color
-      colors[i] = color;
+      // Check if color is defined
+      const testForColor =
+        $layer &&
+        $layer.style &&
+        $layer.style.fills[0] &&
+        $layer.style.fills[0].color;
+      if ($layer.constructor.name != "Function" && testForColor !== undefined) {
+        const color = {};
+        // Name
+        color.name = getLastPart($layer.name);
+        // Clean hex
+        const hex = $layer.style.fills[0].color;
+        color.hex = hex.substr(0, 7);
+        // Add color
+        colors[i] = color;
+      }
     });
     return colors;
   }
@@ -63,13 +71,12 @@ export default function() {
   }
 
   // Set state
-  if (layers) {
+  if (layers.length > 0) {
     state.colors = getColors(layers);
     state.fontSizes = getFontSizes(textLayers);
     state.fontFamilies = getFontFamilies(textLayers);
+    return state;
   } else {
     sketch.UI.message("No layers found");
   }
-
-  return state;
 }

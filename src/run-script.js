@@ -1,14 +1,13 @@
-import BrowserWindow from 'sketch-module-web-view'
-import sketch from 'sketch';
-import fs from '@skpm/fs';
-import util from 'util';
-import getState from './get-state';
+import BrowserWindow from "sketch-module-web-view";
+import sketch from "sketch";
+import fs from "@skpm/fs";
+import util from "util";
+import getState from "./get-state";
 
 export default function() {
-
   // Create the webview
   const options = {
-    identifier: 'unique.id',
+    identifier: "unique.id",
     width: 680,
     height: 700,
     show: false,
@@ -17,29 +16,30 @@ export default function() {
     minHeight: 500,
     minimizable: false,
     maximizable: false,
-    title: 'Sketch Tailwind',
+    title: "Sketch Tailwind",
     resizable: true,
-    show: false,
-  }
-  const browserWindow = new BrowserWindow(options)
+    show: false
+  };
+  const browserWindow = new BrowserWindow(options);
   const state = getState();
+  console.log(state);
 
   // pass in data to the BrowserWindow
   browserWindow.webContents.insertJS(
     `window.initialState = ${JSON.stringify(state)}`
-  )
+  );
   // only show the window when the page has loaded
-  browserWindow.once('ready-to-show', () => {
-    browserWindow.show()
-  })
+  browserWindow.once("ready-to-show", () => {
+    browserWindow.show();
+  });
   // Remove instance on close
-  browserWindow.on('closed', () => {
+  browserWindow.on("closed", () => {
     browserWindow.webContents = null;
-  })
+  });
   // Save the file
-  browserWindow.webContents.on('exportFile', function(file) {
+  browserWindow.webContents.on("exportFile", function(file) {
     saveFile(file);
-  })
+  });
   // File save function
   function saveFile(theme) {
     const save = NSSavePanel.savePanel();
@@ -50,9 +50,16 @@ export default function() {
 
     if (save.runModal()) {
       const path = save.URL().path();
-      fs.writeFileSync(path, `const theme = ${util.inspect(theme, { depth: null })}; export default theme;`, 'utf8');
+      fs.writeFileSync(
+        path,
+        `const theme = ${util.inspect(theme, {
+          depth: null
+        })}; export default theme;`,
+        "utf8"
+      );
       sketch.UI.message("Theme exported");
     }
   }
-  browserWindow.loadURL(require('../resources/webview.html'))
+  // Load the view
+  browserWindow.loadURL(require("../resources/webview.html"));
 }

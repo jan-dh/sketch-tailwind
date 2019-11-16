@@ -2995,7 +2995,7 @@ module.exports = function buildAPI(browserWindow, panel, webview) {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "file://" + context.plugin.urlForResourceNamed("_webpack_resources/c5a7288f7bba686959687e9f69bc33ab.html").path();
+module.exports = "file://" + context.plugin.urlForResourceNamed("_webpack_resources/616e080653ac50013112ba4380144ca4.html").path();
 
 /***/ }),
 
@@ -3021,21 +3021,26 @@ __webpack_require__.r(__webpack_exports__);
 
 /* harmony default export */ __webpack_exports__["default"] = (function () {
   const doc = sketch__WEBPACK_IMPORTED_MODULE_0___default.a.fromNative(context.document);
-  const layers = doc.sharedLayerStyles();
-  const textLayers = doc.sharedTextStyles();
+  const layers = doc.sharedLayerStyles;
+  const textLayers = doc.sharedTextStyles;
   const state = {}; // Get colors
 
   function getColors(layers) {
     let colors = [];
     Object.values(layers).forEach(($layer, i) => {
-      const color = {}; // Name
+      // Check if color is defined
+      const testForColor = $layer && $layer.style && $layer.style.fills[0] && $layer.style.fills[0].color;
 
-      color.name = Object(_helpers__WEBPACK_IMPORTED_MODULE_1__["getLastPart"])($layer.name);
-      const hex = $layer.style.fills[0].color; // Clean hex
+      if ($layer.constructor.name != "Function" && testForColor !== undefined) {
+        const color = {}; // Name
 
-      color.hex = hex.substr(0, 7); // Add color
+        color.name = Object(_helpers__WEBPACK_IMPORTED_MODULE_1__["getLastPart"])($layer.name); // Clean hex
 
-      colors[i] = color;
+        const hex = $layer.style.fills[0].color;
+        color.hex = hex.substr(0, 7); // Add color
+
+        colors[i] = color;
+      }
     });
     return colors;
   } // Get font family
@@ -3064,15 +3069,14 @@ __webpack_require__.r(__webpack_exports__);
   } // Set state
 
 
-  if (layers) {
+  if (layers.length > 0) {
     state.colors = getColors(layers);
     state.fontSizes = getFontSizes(textLayers);
     state.fontFamilies = getFontFamilies(textLayers);
+    return state;
   } else {
     sketch__WEBPACK_IMPORTED_MODULE_0___default.a.UI.message("No layers found");
   }
-
-  return state;
 });
 
 /***/ }),
@@ -3088,8 +3092,8 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getLastPart", function() { return getLastPart; });
 function getLastPart(name) {
-  if (name.indexOf('/') !== -1) {
-    name = name.substr(name.lastIndexOf('/') + 1);
+  if (name.indexOf("/") !== -1) {
+    name = name.substr(name.lastIndexOf("/") + 1);
   }
 
   return name.toLowerCase();
@@ -3123,7 +3127,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony default export */ __webpack_exports__["default"] = (function () {
   // Create the webview
   const options = {
-    identifier: 'unique.id',
+    identifier: "unique.id",
     width: 680,
     height: 700,
     show: false,
@@ -3132,24 +3136,25 @@ __webpack_require__.r(__webpack_exports__);
     minHeight: 500,
     minimizable: false,
     maximizable: false,
-    title: 'Sketch Tailwind',
+    title: "Sketch Tailwind",
     resizable: true,
     show: false
   };
   const browserWindow = new sketch_module_web_view__WEBPACK_IMPORTED_MODULE_0___default.a(options);
-  const state = Object(_get_state__WEBPACK_IMPORTED_MODULE_4__["default"])(); // pass in data to the BrowserWindow
+  const state = Object(_get_state__WEBPACK_IMPORTED_MODULE_4__["default"])();
+  console.log(state); // pass in data to the BrowserWindow
 
   browserWindow.webContents.insertJS(`window.initialState = ${JSON.stringify(state)}`); // only show the window when the page has loaded
 
-  browserWindow.once('ready-to-show', () => {
+  browserWindow.once("ready-to-show", () => {
     browserWindow.show();
   }); // Remove instance on close
 
-  browserWindow.on('closed', () => {
+  browserWindow.on("closed", () => {
     browserWindow.webContents = null;
   }); // Save the file
 
-  browserWindow.webContents.on('exportFile', function (file) {
+  browserWindow.webContents.on("exportFile", function (file) {
     saveFile(file);
   }); // File save function
 
@@ -3164,10 +3169,11 @@ __webpack_require__.r(__webpack_exports__);
       const path = save.URL().path();
       _skpm_fs__WEBPACK_IMPORTED_MODULE_2___default.a.writeFileSync(path, `const theme = ${util__WEBPACK_IMPORTED_MODULE_3___default.a.inspect(theme, {
         depth: null
-      })}; export default theme;`, 'utf8');
+      })}; export default theme;`, "utf8");
       sketch__WEBPACK_IMPORTED_MODULE_1___default.a.UI.message("Theme exported");
     }
-  }
+  } // Load the view
+
 
   browserWindow.loadURL(__webpack_require__(/*! ../resources/webview.html */ "./resources/webview.html"));
 });
