@@ -28,7 +28,6 @@ export default function() {
         color.hex = hex.substr(0, 7);
         // Add color
         colors.push(color);
-        console.log(colors);
       }
     });
     return colors;
