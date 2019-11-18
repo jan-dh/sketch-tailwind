@@ -1,4 +1,5 @@
 import BrowserWindow from "sketch-module-web-view";
+import { getWebview } from "sketch-module-web-view/remote";
 import sketch from "sketch";
 import fs from "@skpm/fs";
 import util from "util";
@@ -22,7 +23,6 @@ export default function() {
   };
   const browserWindow = new BrowserWindow(options);
   const state = getState();
-  console.log(state);
 
   // pass in data to the BrowserWindow
   browserWindow.webContents.insertJS(
@@ -62,4 +62,11 @@ export default function() {
   }
   // Load the view
   browserWindow.loadURL(require("../resources/webview.html"));
+}
+
+export function onShutdown() {
+  const existingWebview = getWebview(webviewIdentifier);
+  if (existingWebview) {
+    existingWebview.close();
+  }
 }

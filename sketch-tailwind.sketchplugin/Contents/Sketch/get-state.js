@@ -747,7 +747,8 @@ __webpack_require__.r(__webpack_exports__);
         const hex = $layer.style.fills[0].color;
         color.hex = hex.substr(0, 7); // Add color
 
-        colors[i] = color;
+        colors.push(color);
+        console.log(colors);
       }
     });
     return colors;

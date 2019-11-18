@@ -45,7 +45,7 @@
   ],
   "dependencies": {
     "@skpm/fs": "^0.2.5",
-    "sketch-module-web-view": "^2.1.7",
+    "sketch-module-web-view": "^3.4.1",
     "util": "^0.11.1"
   },
   "author": "Jan <jan.dhollander84@gmail.com>"
