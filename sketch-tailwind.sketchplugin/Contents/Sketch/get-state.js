@@ -748,7 +748,6 @@ __webpack_require__.r(__webpack_exports__);
         color.hex = hex.substr(0, 7); // Add color
 
         colors.push(color);
-        console.log(colors);
       }
     });
     return colors;

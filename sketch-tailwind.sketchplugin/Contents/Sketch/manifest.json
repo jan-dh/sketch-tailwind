@@ -1,5 +1,5 @@
 {
-  "compatibleVersion": 3,
+  "icon": "icon.png",
   "bundleVersion": 1,
   "commands": [
     {
@@ -25,6 +25,6 @@
   "identifier": "sketch-tailwind",
   "disableCocoaScriptPreprocessor": true,
   "appcast": "https://raw.githubusercontent.com/jan-dh/sketch-tailwind/master/.appcast.xml",
-  "author": "Jan",
+  "author": "Jan D'Hollander",
   "authorEmail": "jan.dhollander84@gmail.com"
 }

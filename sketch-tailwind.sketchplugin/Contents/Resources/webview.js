@@ -39853,19 +39853,10 @@ class Color extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
   }
 
   render() {
-    let name;
-    let hex;
-
-    if (this.props.details) {
-      name = this.props.details.name;
-      hex = this.props.details.hex;
-    } else {
-      name = "test";
-      hex = "#000000";
-    }
-
-    console.log(name);
-    console.log(hex);
+    const {
+      name,
+      hex
+    } = this.props.details;
     return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
       className: "flex mb-6 items-end"
     }, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
