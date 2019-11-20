@@ -77,7 +77,6 @@ All feedback is welcome. Feel free to submit [issues or suggestions](https://git
 
 ## Roadmap
 
--   🔥 Add Plugin Icon
 -   🎨 Provide color scale support
 -   🚀 Add more possible exports
 
