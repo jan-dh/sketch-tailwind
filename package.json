@@ -1,7 +1,7 @@
 {
   "name": "sketch-tailwind",
   "description": "Export your design to a theme-file you can use in your Tailwind Css config.",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "engines": {
     "sketch": ">=3.0"
   },
