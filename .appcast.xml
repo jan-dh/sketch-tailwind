@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<rss
-  xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
-  xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
   <channel>
     <title>Sketch tailwind</title>
     <description>Export your design to a theme-file you can use in your Tailwind Css config</description>
     <language>en</language>
+    <item>
+      <enclosure url="https://github.com/jan-dh/sketch-tailwind/releases/download/v2.1.1/sketch-tailwind.sketchplugin.zip" sparkle:version="2.1.1"/>
+    </item>
     <item>
       <enclosure url="https://github.com/jan-dh/sketch-tailwind/releases/download/v2.1.0/sketch-tailwind.zip" sparkle:version="2.1.0"/>
     </item>
@@ -14,5 +15,3 @@
     </item>
   </channel>
 </rss>
-
-
