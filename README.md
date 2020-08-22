@@ -1,5 +1,7 @@
 # Sketch Tailwind
 
+Note: This plugin will not be updated. I don't own a Sketch licence anymore and plugin development for Sketch is a bit of a pain tbh. Have made a Figma version of this plugin, you can find it over [here](https://www.figma.com/c/plugin/785619431629077634/Figma-Tailwindcss). That version is still being maintained and input for new features is welcome in the [repo](https://github.com/jan-dh/figma-tailwindcss/).
+
 A plugin that tries to bridge the gap between design and code. Sketch Tailwind lets you export aspects of a design made in Sketch to a javascript `theme` file that can easily be used with Tailwind CSS.
 
 ---
