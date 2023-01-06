@@ -28,7 +28,7 @@
     "@skpm/builder": "^0.8.0",
     "@skpm/extract-loader": "^2.0.2",
     "babel-preset-react": "^6.24.1",
-    "css-loader": "^1.0.1",
+    "css-loader": "^6.7.3",
     "eslint": "^5.16.0",
     "eslint-config-airbnb-base": "^13.2.0",
     "eslint-loader": "^2.2.1",
